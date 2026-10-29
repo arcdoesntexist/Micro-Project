@@ -1,0 +1,1369 @@
+# Review package: 3758dff4772db4c6989bb71041a108c52ab72444..HEAD
+
+## Commits
+78eaf9f feat: add safe pooled falling objects
+
+## Files changed
+ Assets/CPS/Config.meta                             |   8 ++
+ Assets/CPS/Config/Apple.asset                      |  17 +++
+ Assets/CPS/Config/Apple.asset.meta                 |   8 ++
+ Assets/CPS/Config/BananaPeel.asset                 |  17 +++
+ Assets/CPS/Config/BananaPeel.asset.meta            |   8 ++
+ Assets/CPS/Config/Bread.asset                      |  17 +++
+ Assets/CPS/Config/Bread.asset.meta                 |   8 ++
+ Assets/CPS/Config/Cake.asset                       |  17 +++
+ Assets/CPS/Config/Cake.asset.meta                  |   8 ++
+ Assets/CPS/Config/Can.asset                        |  17 +++
+ Assets/CPS/Config/Can.asset.meta                   |   8 ++
+ Assets/CPS/Config/Easy.asset                       |  22 +++
+ Assets/CPS/Config/Easy.asset.meta                  |   8 ++
+ Assets/CPS/Config/Hard.asset                       |  26 ++++
+ Assets/CPS/Config/Hard.asset.meta                  |   8 ++
+ Assets/CPS/Config/Normal.asset                     |  24 ++++
+ Assets/CPS/Config/Normal.asset.meta                |   8 ++
+ Assets/CPS/Editor.meta                             |   8 ++
+ Assets/CPS/Editor/CPS.Editor.asmdef                |   6 +
+ Assets/CPS/Editor/CPS.Editor.asmdef.meta           |   7 +
+ Assets/CPS/Editor/GameObjectAssetSetup.cs          |  60 ++++++++
+ Assets/CPS/Editor/GameObjectAssetSetup.cs.meta     |   2 +
+ Assets/CPS/Objects.meta                            |   8 ++
+ Assets/CPS/Objects/DifficultyConfig.cs             |  31 +++++
+ Assets/CPS/Objects/DifficultyConfig.cs.meta        |   2 +
+ Assets/CPS/Objects/FallingObject.cs                |  71 ++++++++++
+ Assets/CPS/Objects/FallingObject.cs.meta           |   2 +
+ Assets/CPS/Objects/FallingObjectDefinition.cs      |  12 ++
+ Assets/CPS/Objects/FallingObjectDefinition.cs.meta |   2 +
+ Assets/CPS/Objects/FallingObjectSpawner.cs         | 108 ++++++++++++++
+ Assets/CPS/Objects/FallingObjectSpawner.cs.meta    |   2 +
+ Assets/CPS/Objects/SpawnPolicy.cs                  | 112 +++++++++++++++
+ Assets/CPS/Objects/SpawnPolicy.cs.meta             |   2 +
+ Assets/CPS/Prefabs.meta                            |   8 ++
+ Assets/CPS/Prefabs/FallingObject.prefab            | 106 ++++++++++++++
+ Assets/CPS/Prefabs/FallingObject.prefab.meta       |   7 +
+ Assets/CPS/Tests/EditMode/SpawnPolicyTests.cs      | 128 +++++++++++++++++
+ Assets/CPS/Tests/EditMode/SpawnPolicyTests.cs.meta |   2 +
+ Assets/CPS/Tests/PlayMode/FallingObjectTests.cs    | 155 +++++++++++++++++++++
+ .../CPS/Tests/PlayMode/FallingObjectTests.cs.meta  |   2 +
+ 40 files changed, 1072 insertions(+)
+
+## Diff
+diff --git a/Assets/CPS/Config.meta b/Assets/CPS/Config.meta
+new file mode 100644
+index 0000000..b9d566a
+--- /dev/null
++++ b/Assets/CPS/Config.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 82a85fcf215f789428b8f874ea04bb57
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Config/Apple.asset b/Assets/CPS/Config/Apple.asset
+new file mode 100644
+index 0000000..e438ba6
+--- /dev/null
++++ b/Assets/CPS/Config/Apple.asset
+@@ -0,0 +1,17 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!114 &11400000
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 0}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 0e547232a76864a47b686d76776ec306, type: 3}
++  m_Name: Apple
++  m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.FallingObjectDefinition
++  kind: 0
++  points: 10
++  sprite: {fileID: 0}
+diff --git a/Assets/CPS/Config/Apple.asset.meta b/Assets/CPS/Config/Apple.asset.meta
+new file mode 100644
+index 0000000..b2c536c
+--- /dev/null
++++ b/Assets/CPS/Config/Apple.asset.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: bec0dcb772f71b040ab00074e5356e62
++NativeFormatImporter:
++  externalObjects: {}
++  mainObjectFileID: 11400000
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Config/BananaPeel.asset b/Assets/CPS/Config/BananaPeel.asset
+new file mode 100644
+index 0000000..12ec52b
+--- /dev/null
++++ b/Assets/CPS/Config/BananaPeel.asset
+@@ -0,0 +1,17 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!114 &11400000
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 0}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 0e547232a76864a47b686d76776ec306, type: 3}
++  m_Name: BananaPeel
++  m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.FallingObjectDefinition
++  kind: 1
++  points: 0
++  sprite: {fileID: 0}
+diff --git a/Assets/CPS/Config/BananaPeel.asset.meta b/Assets/CPS/Config/BananaPeel.asset.meta
+new file mode 100644
+index 0000000..f71971c
+--- /dev/null
++++ b/Assets/CPS/Config/BananaPeel.asset.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 8e4a053b9a253eb4b9d8e35ed67b8c8c
++NativeFormatImporter:
++  externalObjects: {}
++  mainObjectFileID: 11400000
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Config/Bread.asset b/Assets/CPS/Config/Bread.asset
+new file mode 100644
+index 0000000..8df001c
+--- /dev/null
++++ b/Assets/CPS/Config/Bread.asset
+@@ -0,0 +1,17 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!114 &11400000
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 0}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 0e547232a76864a47b686d76776ec306, type: 3}
++  m_Name: Bread
++  m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.FallingObjectDefinition
++  kind: 0
++  points: 15
++  sprite: {fileID: 0}
+diff --git a/Assets/CPS/Config/Bread.asset.meta b/Assets/CPS/Config/Bread.asset.meta
+new file mode 100644
+index 0000000..c817d6a
+--- /dev/null
++++ b/Assets/CPS/Config/Bread.asset.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 445e6edbf2e6ee244a18e0f5b734b626
++NativeFormatImporter:
++  externalObjects: {}
++  mainObjectFileID: 11400000
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Config/Cake.asset b/Assets/CPS/Config/Cake.asset
+new file mode 100644
+index 0000000..4283296
+--- /dev/null
++++ b/Assets/CPS/Config/Cake.asset
+@@ -0,0 +1,17 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!114 &11400000
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 0}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 0e547232a76864a47b686d76776ec306, type: 3}
++  m_Name: Cake
++  m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.FallingObjectDefinition
++  kind: 0
++  points: 20
++  sprite: {fileID: 0}
+diff --git a/Assets/CPS/Config/Cake.asset.meta b/Assets/CPS/Config/Cake.asset.meta
+new file mode 100644
+index 0000000..53105c4
+--- /dev/null
++++ b/Assets/CPS/Config/Cake.asset.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 9a3305c71b27f7447a33dcd8a6903210
++NativeFormatImporter:
++  externalObjects: {}
++  mainObjectFileID: 11400000
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Config/Can.asset b/Assets/CPS/Config/Can.asset
+new file mode 100644
+index 0000000..8c6da0f
+--- /dev/null
++++ b/Assets/CPS/Config/Can.asset
+@@ -0,0 +1,17 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!114 &11400000
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 0}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 0e547232a76864a47b686d76776ec306, type: 3}
++  m_Name: Can
++  m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.FallingObjectDefinition
++  kind: 1
++  points: 0
++  sprite: {fileID: 0}
+diff --git a/Assets/CPS/Config/Can.asset.meta b/Assets/CPS/Config/Can.asset.meta
+new file mode 100644
+index 0000000..a41bd89
+--- /dev/null
++++ b/Assets/CPS/Config/Can.asset.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 91e1516b3af72a740b171e28ba0bc713
++NativeFormatImporter:
++  externalObjects: {}
++  mainObjectFileID: 11400000
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Config/Easy.asset b/Assets/CPS/Config/Easy.asset
+new file mode 100644
+index 0000000..3af9a28
+--- /dev/null
++++ b/Assets/CPS/Config/Easy.asset
+@@ -0,0 +1,22 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!114 &11400000
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 0}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 751d3e848e0d7ae488efe955bef504e9, type: 3}
++  m_Name: Easy
++  m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.DifficultyConfig
++  difficulty: 0
++  speed: 2
++  interval: 1.4
++  trashProbability: 0
++  lanes:
++  - -6
++  - 0
++  - 6
+diff --git a/Assets/CPS/Config/Easy.asset.meta b/Assets/CPS/Config/Easy.asset.meta
+new file mode 100644
+index 0000000..b3c4441
+--- /dev/null
++++ b/Assets/CPS/Config/Easy.asset.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 08f9057f28366174c9560f529c425ed5
++NativeFormatImporter:
++  externalObjects: {}
++  mainObjectFileID: 11400000
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Config/Hard.asset b/Assets/CPS/Config/Hard.asset
+new file mode 100644
+index 0000000..4c97c12
+--- /dev/null
++++ b/Assets/CPS/Config/Hard.asset
+@@ -0,0 +1,26 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!114 &11400000
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 0}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 751d3e848e0d7ae488efe955bef504e9, type: 3}
++  m_Name: Hard
++  m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.DifficultyConfig
++  difficulty: 2
++  speed: 3.5
++  interval: 0.85
++  trashProbability: 0.25
++  lanes:
++  - -6
++  - -4
++  - -2
++  - 0
++  - 2
++  - 4
++  - 6
+diff --git a/Assets/CPS/Config/Hard.asset.meta b/Assets/CPS/Config/Hard.asset.meta
+new file mode 100644
+index 0000000..0bdeffc
+--- /dev/null
++++ b/Assets/CPS/Config/Hard.asset.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 7a0374bc51ba5ba458dc0ab1152cca5f
++NativeFormatImporter:
++  externalObjects: {}
++  mainObjectFileID: 11400000
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Config/Normal.asset b/Assets/CPS/Config/Normal.asset
+new file mode 100644
+index 0000000..ac47a32
+--- /dev/null
++++ b/Assets/CPS/Config/Normal.asset
+@@ -0,0 +1,24 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!114 &11400000
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 0}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 751d3e848e0d7ae488efe955bef504e9, type: 3}
++  m_Name: Normal
++  m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.DifficultyConfig
++  difficulty: 1
++  speed: 2.8
++  interval: 1.1
++  trashProbability: 0.15
++  lanes:
++  - -6
++  - -3
++  - 0
++  - 3
++  - 6
+diff --git a/Assets/CPS/Config/Normal.asset.meta b/Assets/CPS/Config/Normal.asset.meta
+new file mode 100644
+index 0000000..13f257b
+--- /dev/null
++++ b/Assets/CPS/Config/Normal.asset.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: c2235dffdf9ea66489b910b8822ff019
++NativeFormatImporter:
++  externalObjects: {}
++  mainObjectFileID: 11400000
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Editor.meta b/Assets/CPS/Editor.meta
+new file mode 100644
+index 0000000..847a984
+--- /dev/null
++++ b/Assets/CPS/Editor.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: b49b50e118670b34c8914fd25b9a0ebf
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Editor/CPS.Editor.asmdef b/Assets/CPS/Editor/CPS.Editor.asmdef
+new file mode 100644
+index 0000000..639a197
+--- /dev/null
++++ b/Assets/CPS/Editor/CPS.Editor.asmdef
+@@ -0,0 +1,6 @@
++{
++    "name": "CPS.Editor",
++    "rootNamespace": "CPS.KitchenCatch.Editor",
++    "references": ["CPS.Runtime"],
++    "includePlatforms": ["Editor"]
++}
+diff --git a/Assets/CPS/Editor/CPS.Editor.asmdef.meta b/Assets/CPS/Editor/CPS.Editor.asmdef.meta
+new file mode 100644
+index 0000000..2a5a67a
+--- /dev/null
++++ b/Assets/CPS/Editor/CPS.Editor.asmdef.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: ef36048b31d8fb94fb9fa556a0189f68
++AssemblyDefinitionImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Editor/GameObjectAssetSetup.cs b/Assets/CPS/Editor/GameObjectAssetSetup.cs
+new file mode 100644
+index 0000000..efa041a
+--- /dev/null
++++ b/Assets/CPS/Editor/GameObjectAssetSetup.cs
+@@ -0,0 +1,60 @@
++using UnityEditor;
++using UnityEngine;
++
++namespace CPS.KitchenCatch.Editor
++{
++    public static class GameObjectAssetSetup
++    {
++        [MenuItem("CPS/Create Missing Object Assets")]
++        public static void CreateMissing()
++        {
++            EnsureFolder("Assets/CPS", "Config");
++            EnsureFolder("Assets/CPS", "Prefabs");
++            CreateDifficulty("Easy", DifficultyId.Easy, 2, 1.4f, 0, new[] { -6f, 0, 6 });
++            CreateDifficulty("Normal", DifficultyId.Normal, 2.8f, 1.1f, 0.15f, new[] { -6f, -3, 0, 3, 6 });
++            CreateDifficulty("Hard", DifficultyId.Hard, 3.5f, 0.85f, 0.25f, new[] { -6f, -4, -2, 0, 2, 4, 6 });
++            CreateDefinition("Apple", ObjectKind.Food, 10);
++            CreateDefinition("Bread", ObjectKind.Food, 15);
++            CreateDefinition("Cake", ObjectKind.Food, 20);
++            CreateDefinition("Can", ObjectKind.Trash, 0);
++            CreateDefinition("BananaPeel", ObjectKind.Trash, 0);
++            const string prefabPath = "Assets/CPS/Prefabs/FallingObject.prefab";
++            if (AssetDatabase.LoadMainAssetAtPath(prefabPath) == null && !System.IO.File.Exists(prefabPath))
++            {
++                var instance = new GameObject("FallingObject");
++                try
++                {
++                    instance.AddComponent<FallingObject>();
++                    PrefabUtility.SaveAsPrefabAsset(instance, prefabPath);
++                }
++                finally { Object.DestroyImmediate(instance); }
++            }
++            AssetDatabase.SaveAssets();
++        }
++
++        private static void EnsureFolder(string parent, string name)
++        {
++            if (!AssetDatabase.IsValidFolder(parent + "/" + name)) AssetDatabase.CreateFolder(parent, name);
++        }
++
++        private static void CreateDifficulty(string name, DifficultyId id, float speed, float interval,
++            float probability, float[] lanes)
++        {
++            string path = "Assets/CPS/Config/" + name + ".asset";
++            if (AssetDatabase.LoadMainAssetAtPath(path) != null || System.IO.File.Exists(path)) return;
++            var asset = ScriptableObject.CreateInstance<DifficultyConfig>();
++            asset.difficulty = id; asset.speed = speed; asset.interval = interval;
++            asset.trashProbability = probability; asset.lanes = lanes;
++            AssetDatabase.CreateAsset(asset, path);
++        }
++
++        private static void CreateDefinition(string name, ObjectKind kind, int points)
++        {
++            string path = "Assets/CPS/Config/" + name + ".asset";
++            if (AssetDatabase.LoadMainAssetAtPath(path) != null || System.IO.File.Exists(path)) return;
++            var asset = ScriptableObject.CreateInstance<FallingObjectDefinition>();
++            asset.kind = kind; asset.points = points;
++            AssetDatabase.CreateAsset(asset, path);
++        }
++    }
++}
+diff --git a/Assets/CPS/Editor/GameObjectAssetSetup.cs.meta b/Assets/CPS/Editor/GameObjectAssetSetup.cs.meta
+new file mode 100644
+index 0000000..eceab2b
+--- /dev/null
++++ b/Assets/CPS/Editor/GameObjectAssetSetup.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: acce9c1987ece0640a01b62c8821eeb0
+\ No newline at end of file
+diff --git a/Assets/CPS/Objects.meta b/Assets/CPS/Objects.meta
+new file mode 100644
+index 0000000..8201076
+--- /dev/null
++++ b/Assets/CPS/Objects.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: a778108e610e3284b94530e979ae3e09
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Objects/DifficultyConfig.cs b/Assets/CPS/Objects/DifficultyConfig.cs
+new file mode 100644
+index 0000000..4ed6563
+--- /dev/null
++++ b/Assets/CPS/Objects/DifficultyConfig.cs
+@@ -0,0 +1,31 @@
++using System;
++using UnityEngine;
++
++namespace CPS.KitchenCatch
++{
++    [CreateAssetMenu(menuName = "CPS/Difficulty")]
++    public sealed class DifficultyConfig : ScriptableObject
++    {
++        public DifficultyId difficulty;
++        public float speed;
++        public float interval;
++        public float trashProbability;
++        public float[] lanes;
++        public void Validate()
++        {
++            if (!Enum.IsDefined(typeof(DifficultyId), difficulty)) throw new ArgumentException("Difficulty is invalid.");
++            if (!FinitePositive(speed)) throw new ArgumentException("Fall speed must be finite and positive.");
++            if (!FinitePositive(interval)) throw new ArgumentException("Spawn interval must be finite and positive.");
++            if (float.IsNaN(trashProbability) || trashProbability < 0 || trashProbability > 1)
++                throw new ArgumentException("Trash probability must be between zero and one.");
++            if (lanes == null || lanes.Length == 0) throw new ArgumentException("Spawn lanes are missing.");
++            foreach (float lane in lanes)
++                if (float.IsNaN(lane) || float.IsInfinity(lane) || Mathf.Abs(lane) > 7.5f)
++                    throw new ArgumentException("Spawn lane is outside the reachable field.");
++            if (difficulty == DifficultyId.Easy && trashProbability != 0)
++                throw new ArgumentException("Easy difficulty must have zero trash probability.");
++        }
++
++        internal static bool FinitePositive(float value) => !float.IsNaN(value) && !float.IsInfinity(value) && value > 0;
++    }
++}
+diff --git a/Assets/CPS/Objects/DifficultyConfig.cs.meta b/Assets/CPS/Objects/DifficultyConfig.cs.meta
+new file mode 100644
+index 0000000..726aa73
+--- /dev/null
++++ b/Assets/CPS/Objects/DifficultyConfig.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 751d3e848e0d7ae488efe955bef504e9
+\ No newline at end of file
+diff --git a/Assets/CPS/Objects/FallingObject.cs b/Assets/CPS/Objects/FallingObject.cs
+new file mode 100644
+index 0000000..8bc01a0
+--- /dev/null
++++ b/Assets/CPS/Objects/FallingObject.cs
+@@ -0,0 +1,71 @@
++using System;
++using UnityEngine;
++
++namespace CPS.KitchenCatch
++{
++    [RequireComponent(typeof(SpriteRenderer))]
++    public sealed class FallingObject : MonoBehaviour
++    {
++        public bool IsActive { get; private set; }
++        public long SpawnId { get; private set; }
++        private FallingObjectDefinition definition;
++        private float speed;
++        private Action<long, FallingObjectDefinition, ObjectOutcome> report;
++
++        public void BindResolution(Action<long, FallingObjectDefinition, ObjectOutcome> callback) => report = callback;
++
++        public void Spawn(long id, FallingObjectDefinition definition, Vector2 position, float speed)
++        {
++            if (id <= 0 || definition == null || !DifficultyConfig.FinitePositive(speed) ||
++                float.IsNaN(position.x) || float.IsInfinity(position.x) ||
++                float.IsNaN(position.y) || float.IsInfinity(position.y))
++                throw new ArgumentException("Falling object spawn parameters are invalid.");
++            report = null;
++            SpawnId = id;
++            this.definition = definition;
++            this.speed = speed;
++            transform.position = position;
++            transform.rotation = Quaternion.identity;
++            transform.localScale = Vector3.one;
++            var renderer = GetComponent<SpriteRenderer>();
++            renderer.sprite = definition.sprite;
++            renderer.color = Color.white;
++            renderer.flipX = renderer.flipY = false;
++            IsActive = true;
++            gameObject.SetActive(true);
++        }
++
++        public void Step(float dt, Bounds catchZone)
++        {
++            if (!IsActive || !DifficultyConfig.FinitePositive(dt)) return;
++            var previous = transform.position;
++            var next = previous + Vector3.down * (speed * dt);
++            transform.position = next;
++            if (previous.x >= catchZone.min.x && previous.x <= catchZone.max.x &&
++                previous.y >= catchZone.min.y && next.y <= catchZone.max.y)
++                TryResolve(SpawnId, ObjectOutcome.Caught);
++            else if (next.y < catchZone.min.y) TryResolve(SpawnId, ObjectOutcome.Missed);
++        }
++
++        public bool TryResolve(long id, ObjectOutcome outcome)
++        {
++            if (!IsActive || id != SpawnId) return false;
++            IsActive = false;
++            var callback = report;
++            report = null;
++            callback?.Invoke(id, definition, outcome);
++            return true;
++        }
++
++        public void Despawn()
++        {
++            IsActive = false;
++            SpawnId = 0;
++            speed = 0;
++            definition = null;
++            report = null;
++            GetComponent<SpriteRenderer>().sprite = null;
++            gameObject.SetActive(false);
++        }
++    }
++}
+diff --git a/Assets/CPS/Objects/FallingObject.cs.meta b/Assets/CPS/Objects/FallingObject.cs.meta
+new file mode 100644
+index 0000000..7750ea4
+--- /dev/null
++++ b/Assets/CPS/Objects/FallingObject.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 936ffca72652b024fbf6be02f69e01a2
+\ No newline at end of file
+diff --git a/Assets/CPS/Objects/FallingObjectDefinition.cs b/Assets/CPS/Objects/FallingObjectDefinition.cs
+new file mode 100644
+index 0000000..49de9f3
+--- /dev/null
++++ b/Assets/CPS/Objects/FallingObjectDefinition.cs
+@@ -0,0 +1,12 @@
++using UnityEngine;
++
++namespace CPS.KitchenCatch
++{
++    [CreateAssetMenu(menuName = "CPS/Falling Object")]
++    public sealed class FallingObjectDefinition : ScriptableObject
++    {
++        public ObjectKind kind;
++        public int points;
++        public Sprite sprite;
++    }
++}
+diff --git a/Assets/CPS/Objects/FallingObjectDefinition.cs.meta b/Assets/CPS/Objects/FallingObjectDefinition.cs.meta
+new file mode 100644
+index 0000000..f5b9a95
+--- /dev/null
++++ b/Assets/CPS/Objects/FallingObjectDefinition.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 0e547232a76864a47b686d76776ec306
+\ No newline at end of file
+diff --git a/Assets/CPS/Objects/FallingObjectSpawner.cs b/Assets/CPS/Objects/FallingObjectSpawner.cs
+new file mode 100644
+index 0000000..7ce9b3b
+--- /dev/null
++++ b/Assets/CPS/Objects/FallingObjectSpawner.cs
+@@ -0,0 +1,108 @@
++using System;
++using System.Collections.Generic;
++using UnityEngine;
++using UnityEngine.Pool;
++
++namespace CPS.KitchenCatch
++{
++    public sealed class FallingObjectSpawner : MonoBehaviour
++    {
++        [SerializeField] private PlayerController player;
++        [SerializeField] private FallingObject prefab;
++        [SerializeField] private FallingObjectDefinition[] foodDefinitions;
++        [SerializeField] private FallingObjectDefinition[] trashDefinitions;
++        [SerializeField] private int seed = 1;
++        private readonly List<FallingObject> active = new List<FallingObject>();
++        private ObjectPool<FallingObject> pool;
++        private SpawnPolicy policy;
++        private DifficultyConfig config;
++        private Action<long, FallingObjectDefinition, ObjectOutcome> report;
++        private float now;
++        private long nextId;
++        private int generation;
++        public int ActiveCount => active.Count;
++
++        public string GetValidationError(DifficultyConfig difficulty)
++        {
++            if (player == null) return "FallingObjectSpawner player reference is missing.";
++            if (prefab == null) return "FallingObjectSpawner prefab reference is missing.";
++            if (difficulty == null) return "Difficulty config is missing.";
++            try { difficulty.Validate(); } catch (ArgumentException error) { return error.Message; }
++            if (!DefinitionsValid(foodDefinitions, 3, ObjectKind.Food)) return "Three food definitions are required.";
++            if (!DefinitionsValid(trashDefinitions, 2, ObjectKind.Trash)) return "Two trash definitions are required.";
++            var bounds = player.CatchZone;
++            if (!Finite(bounds.center) || !Finite(bounds.extents) || bounds.extents.y >= 7)
++                return "Catch zone must be finite with half-height smaller than spawn distance.";
++            return null;
++        }
++
++        private static bool Finite(Vector3 value) =>
++            !float.IsNaN(value.x) && !float.IsInfinity(value.x) &&
++            !float.IsNaN(value.y) && !float.IsInfinity(value.y) &&
++            !float.IsNaN(value.z) && !float.IsInfinity(value.z);
++
++        private static bool DefinitionsValid(FallingObjectDefinition[] definitions, int count, ObjectKind kind)
++        {
++            if (definitions == null || definitions.Length != count) return false;
++            foreach (var definition in definitions)
++                if (definition == null || definition.kind != kind || definition.points < 0) return false;
++            return true;
++        }
++
++        public void Begin(DifficultyConfig config, Action<long, FallingObjectDefinition, ObjectOutcome> report)
++        {
++            string error = GetValidationError(config);
++            if (error != null) throw new InvalidOperationException(error);
++            if (report == null) throw new ArgumentNullException(nameof(report));
++            StopAndClear();
++            this.config = config;
++            this.report = report;
++            now = 0;
++            policy = new SpawnPolicy(config, seed, player.CatchZone.extents.y);
++            if (pool == null)
++                pool = new ObjectPool<FallingObject>(() => Instantiate(prefab, transform),
++                    null, item => item.Despawn(), item => Destroy(item.gameObject), true, 16, 16);
++        }
++
++        public void Step(float dt)
++        {
++            if (policy == null || !DifficultyConfig.FinitePositive(dt)) return;
++            var bounds = player.CatchZone;
++            double remaining = dt;
++            int currentGeneration = generation;
++            while (remaining > 0)
++            {
++                if (active.Count < 16 && policy.TryChoose(now, 7, bounds.extents.x, out var choice))
++                {
++                    var item = pool.Get();
++                    item.Spawn(++nextId, choice.Kind == ObjectKind.Food ? foodDefinitions[choice.DefinitionIndex] :
++                        trashDefinitions[choice.DefinitionIndex], new Vector2(choice.X, bounds.center.y + 7), config.speed);
++                    item.BindResolution(report);
++                    active.Add(item);
++                }
++                float untilSpawn = policy.NextSpawnTime - now;
++                float slice = (float)Math.Min(remaining, untilSpawn > 0 ? untilSpawn : 1f / 60);
++                for (int i = active.Count - 1; i >= 0; i--)
++                {
++                    var item = active[i];
++                    item.Step(slice, bounds);
++                    if (generation != currentGeneration) return;
++                    if (!item.IsActive) { active.RemoveAt(i); pool.Release(item); }
++                }
++                now += slice;
++                remaining -= slice;
++            }
++        }
++
++        public void StopAndClear()
++        {
++            generation++;
++            policy = null;
++            report = null;
++            foreach (var item in active) pool.Release(item);
++            active.Clear();
++        }
++
++        private void OnDestroy() { StopAndClear(); pool?.Clear(); }
++    }
++}
+diff --git a/Assets/CPS/Objects/FallingObjectSpawner.cs.meta b/Assets/CPS/Objects/FallingObjectSpawner.cs.meta
+new file mode 100644
+index 0000000..7545bee
+--- /dev/null
++++ b/Assets/CPS/Objects/FallingObjectSpawner.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 9271a10280edd414aaac51874ae2759e
+\ No newline at end of file
+diff --git a/Assets/CPS/Objects/SpawnPolicy.cs b/Assets/CPS/Objects/SpawnPolicy.cs
+new file mode 100644
+index 0000000..a57226c
+--- /dev/null
++++ b/Assets/CPS/Objects/SpawnPolicy.cs
+@@ -0,0 +1,112 @@
++using System;
++using System.Collections.Generic;
++using UnityEngine;
++
++namespace CPS.KitchenCatch
++{
++    public readonly struct SpawnChoice
++    {
++        public ObjectKind Kind { get; }
++        public int DefinitionIndex { get; }
++        public float X { get; }
++        public float ArrivalTime { get; }
++        public SpawnChoice(ObjectKind kind, int index, float x, float arrival)
++        { Kind = kind; DefinitionIndex = index; X = x; ArrivalTime = arrival; }
++    }
++
++    public sealed class SpawnPolicy
++    {
++        private readonly float speed;
++        private readonly float interval;
++        private readonly float trashProbability;
++        private readonly float[] lanes;
++        private readonly bool cyclic;
++        private readonly float window;
++        private readonly System.Random random;
++        private readonly List<SpawnChoice> foods = new List<SpawnChoice>();
++        private readonly List<SpawnChoice> trash = new List<SpawnChoice>();
++        private float nextSpawn;
++        private int laneIndex;
++        internal float NextSpawnTime => nextSpawn;
++
++        public SpawnPolicy(DifficultyConfig config, int seed, float catchHalfHeight = 0.25f)
++        {
++            if (config == null) throw new ArgumentException("Difficulty config is missing.");
++            config.Validate();
++            if (float.IsNaN(catchHalfHeight) || float.IsInfinity(catchHalfHeight) || catchHalfHeight < 0)
++                throw new ArgumentException("Catch half-height must be finite and nonnegative.");
++            speed = config.speed;
++            interval = config.interval;
++            trashProbability = config.trashProbability;
++            lanes = (float[])config.lanes.Clone();
++            cyclic = config.difficulty == DifficultyId.Easy;
++            window = catchHalfHeight / speed;
++            random = new System.Random(seed);
++            foods.Add(new SpawnChoice(ObjectKind.Food, 0, 0, 0));
++        }
++
++        public bool TryChoose(float now, float playerSpeed, float catchHalfWidth, out SpawnChoice choice)
++        {
++            choice = default;
++            if (float.IsNaN(now) || float.IsInfinity(now) || now < 0 ||
++                !DifficultyConfig.FinitePositive(playerSpeed) || float.IsNaN(catchHalfWidth) ||
++                float.IsInfinity(catchHalfWidth) || catchHalfWidth < 0)
++                throw new ArgumentException("Spawn time, player speed or catch half-width is invalid.");
++            if (now < nextSpawn) return false;
++            while (foods.Count > 1 && foods[1].ArrivalTime + window < now) foods.RemoveAt(0);
++            trash.RemoveAll(t => t.ArrivalTime + window < now);
++            float arrival = now + 7 / speed;
++            for (int attempt = 0; attempt < (cyclic ? 1 : 16); attempt++)
++            {
++                var kind = !cyclic && random.NextDouble() < trashProbability ? ObjectKind.Trash : ObjectKind.Food;
++                float x = cyclic ? lanes[laneIndex] : lanes[random.Next(lanes.Length)];
++                bool safe = kind == ObjectKind.Food ? FoodSafe(x, arrival, playerSpeed, catchHalfWidth) :
++                    TrashSafe(x, arrival, catchHalfWidth);
++                if (!safe) continue;
++                choice = new SpawnChoice(kind, random.Next(kind == ObjectKind.Food ? 3 : 2), x, arrival);
++                if (kind == ObjectKind.Food) foods.Add(choice); else trash.Add(choice);
++                if (cyclic) laneIndex = (laneIndex + 1) % lanes.Length;
++                nextSpawn = now + interval;
++                return true;
++            }
++            return false;
++        }
++
++        private bool FoodSafe(float x, float arrival, float playerSpeed, float halfWidth)
++        {
++            var before = foods[foods.Count - 1];
++            float departure = Mathf.Max(before.ArrivalTime + window, arrival - 7 / speed);
++            if (Mathf.Abs(x - before.X) > playerSpeed * (arrival - window - departure)) return false;
++            var after = new SpawnChoice(ObjectKind.Food, 0, x, arrival);
++            foreach (var hazard in trash)
++                if (!SegmentSafe(before, after, hazard.X, hazard.ArrivalTime, halfWidth)) return false;
++            return true;
++        }
++
++        private bool TrashSafe(float x, float arrival, float halfWidth)
++        {
++            for (int i = 1; i < foods.Count; i++)
++                if (!SegmentSafe(foods[i - 1], foods[i], x, arrival, halfWidth)) return false;
++            var last = foods[foods.Count - 1];
++            return arrival + window < last.ArrivalTime || Mathf.Abs(x - last.X) > halfWidth;
++        }
++
++        private bool SegmentSafe(SpawnChoice before, SpawnChoice after, float x, float arrival, float halfWidth)
++        {
++            float start = Mathf.Max(before.ArrivalTime, arrival - window);
++            float end = Mathf.Min(after.ArrivalTime, arrival + window);
++            if (start > end) return true;
++            float startX = PathX(before, after, start);
++            float endX = PathX(before, after, end);
++            return x < Mathf.Min(startX, endX) - halfWidth || x > Mathf.Max(startX, endX) + halfWidth;
++        }
++
++        private float PathX(SpawnChoice before, SpawnChoice after, float time)
++        {
++            float departure = Mathf.Max(before.ArrivalTime + window, after.ArrivalTime - 7 / speed);
++            float travelDuration = after.ArrivalTime - window - departure;
++            if (travelDuration <= 0) return before.X;
++            return Mathf.Lerp(before.X, after.X, Mathf.Clamp01((time - departure) / travelDuration));
++        }
++    }
++}
+diff --git a/Assets/CPS/Objects/SpawnPolicy.cs.meta b/Assets/CPS/Objects/SpawnPolicy.cs.meta
+new file mode 100644
+index 0000000..c29e6c8
+--- /dev/null
++++ b/Assets/CPS/Objects/SpawnPolicy.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: cdeb756d35d26ef4c8b3954247bec479
+\ No newline at end of file
+diff --git a/Assets/CPS/Prefabs.meta b/Assets/CPS/Prefabs.meta
+new file mode 100644
+index 0000000..7480b7d
+--- /dev/null
++++ b/Assets/CPS/Prefabs.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 6dfeaae83aa895f438cfe7e835b109db
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Prefabs/FallingObject.prefab b/Assets/CPS/Prefabs/FallingObject.prefab
+new file mode 100644
+index 0000000..4776253
+--- /dev/null
++++ b/Assets/CPS/Prefabs/FallingObject.prefab
+@@ -0,0 +1,106 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!1 &5969113716949523668
++GameObject:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  serializedVersion: 6
++  m_Component:
++  - component: {fileID: 2635853137623014075}
++  - component: {fileID: 8846222616572259753}
++  - component: {fileID: 4553353747519348164}
++  m_Layer: 0
++  m_Name: FallingObject
++  m_TagString: Untagged
++  m_Icon: {fileID: 0}
++  m_NavMeshLayer: 0
++  m_StaticEditorFlags: 0
++  m_IsActive: 1
++--- !u!4 &2635853137623014075
++Transform:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 5969113716949523668}
++  serializedVersion: 2
++  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
++  m_LocalPosition: {x: 0, y: 0, z: 0}
++  m_LocalScale: {x: 1, y: 1, z: 1}
++  m_ConstrainProportionsScale: 0
++  m_Children: []
++  m_Father: {fileID: 0}
++  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
++--- !u!212 &8846222616572259753
++SpriteRenderer:
++  serializedVersion: 2
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 5969113716949523668}
++  m_Enabled: 1
++  m_CastShadows: 0
++  m_ReceiveShadows: 0
++  m_DynamicOccludee: 1
++  m_StaticShadowCaster: 0
++  m_MotionVectors: 1
++  m_LightProbeUsage: 1
++  m_ReflectionProbeUsage: 1
++  m_RayTracingMode: 0
++  m_RayTraceProcedural: 0
++  m_RayTracingAccelStructBuildFlagsOverride: 0
++  m_RayTracingAccelStructBuildFlags: 1
++  m_SmallMeshCulling: 1
++  m_ForceMeshLod: -1
++  m_MeshLodSelectionBias: 0
++  m_RenderingLayerMask: 1
++  m_RendererPriority: 0
++  m_Materials:
++  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
++  m_StaticBatchInfo:
++    firstSubMesh: 0
++    subMeshCount: 0
++  m_StaticBatchRoot: {fileID: 0}
++  m_ProbeAnchor: {fileID: 0}
++  m_LightProbeVolumeOverride: {fileID: 0}
++  m_ScaleInLightmap: 1
++  m_ReceiveGI: 1
++  m_PreserveUVs: 0
++  m_IgnoreNormalsForChartDetection: 0
++  m_ImportantGI: 0
++  m_StitchLightmapSeams: 1
++  m_SelectedEditorRenderState: 0
++  m_MinimumChartSize: 4
++  m_AutoUVMaxDistance: 0.5
++  m_AutoUVMaxAngle: 89
++  m_LightmapParameters: {fileID: 0}
++  m_GlobalIlluminationMeshLod: 0
++  m_SortingLayerID: 0
++  m_SortingLayer: 0
++  m_SortingOrder: 0
++  m_MaskInteraction: 0
++  m_Sprite: {fileID: 0}
++  m_Color: {r: 1, g: 1, b: 1, a: 1}
++  m_FlipX: 0
++  m_FlipY: 0
++  m_DrawMode: 0
++  m_Size: {x: 1, y: 1}
++  m_AdaptiveModeThreshold: 0.5
++  m_SpriteTileMode: 0
++  m_WasSpriteAssigned: 0
++  m_SpriteSortPoint: 0
++--- !u!114 &4553353747519348164
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 5969113716949523668}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 936ffca72652b024fbf6be02f69e01a2, type: 3}
++  m_Name:
++  m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.FallingObject
+diff --git a/Assets/CPS/Prefabs/FallingObject.prefab.meta b/Assets/CPS/Prefabs/FallingObject.prefab.meta
+new file mode 100644
+index 0000000..b5f118f
+--- /dev/null
++++ b/Assets/CPS/Prefabs/FallingObject.prefab.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: 2cfeae4480f4e3948bf1deb52375d4c8
++PrefabImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Tests/EditMode/SpawnPolicyTests.cs b/Assets/CPS/Tests/EditMode/SpawnPolicyTests.cs
+new file mode 100644
+index 0000000..8975956
+--- /dev/null
++++ b/Assets/CPS/Tests/EditMode/SpawnPolicyTests.cs
+@@ -0,0 +1,128 @@
++using System;
++using System.Collections.Generic;
++using NUnit.Framework;
++using UnityEngine;
++
++namespace CPS.KitchenCatch.Tests
++{
++    public sealed class SpawnPolicyTests
++    {
++        private DifficultyConfig config;
++        [SetUp] public void SetUp() { config = ScriptableObject.CreateInstance<DifficultyConfig>(); }
++        [TearDown] public void TearDown() { UnityEngine.Object.DestroyImmediate(config); }
++
++        private void Configure(DifficultyId difficulty)
++        {
++            config.difficulty = difficulty;
++            config.speed = difficulty == DifficultyId.Easy ? 2 : difficulty == DifficultyId.Normal ? 2.8f : 3.5f;
++            config.interval = difficulty == DifficultyId.Easy ? 1.4f : difficulty == DifficultyId.Normal ? 1.1f : 0.85f;
++            config.trashProbability = difficulty == DifficultyId.Easy ? 0 : difficulty == DifficultyId.Normal ? 0.15f : 0.25f;
++            config.lanes = difficulty == DifficultyId.Easy ? new[] { -6f, 0, 6 } :
++                difficulty == DifficultyId.Normal ? new[] { -6f, -3, 0, 3, 6 } : new[] { -6f, -4, -2, 0, 2, 4, 6 };
++        }
++
++        [Test]
++        public void EasyWrapDefersWithoutSkippingCyclicLane()
++        {
++            Configure(DifficultyId.Easy);
++            var policy = new SpawnPolicy(config, 17);
++            Assert.That(policy.TryChoose(0, 7, 0.75f, out var first), Is.True);
++            Assert.That(first.X, Is.EqualTo(-6));
++            Assert.That(policy.TryChoose(1.4f, 7, 0.75f, out var second), Is.True);
++            Assert.That(second.X, Is.Zero);
++            Assert.That(policy.TryChoose(2.8f, 7, 0.75f, out var third), Is.True);
++            Assert.That(third.X, Is.EqualTo(6));
++            Assert.That(policy.TryChoose(4.2f, 7, 0.75f, out _), Is.False);
++            Assert.That(policy.TryChoose(5f, 7, 0.75f, out var wrap), Is.True);
++            Assert.That(wrap.X, Is.EqualTo(-6));
++            Assert.That(wrap.Kind, Is.EqualTo(ObjectKind.Food));
++        }
++
++        [TestCase(DifficultyId.Easy)]
++        [TestCase(DifficultyId.Normal)]
++        [TestCase(DifficultyId.Hard)]
++        public void ThousandSpawnsHaveReproducibleSafeCenteredCatchPath(DifficultyId difficulty)
++        {
++            Configure(difficulty);
++            var policy = new SpawnPolicy(config, 723);
++            var duplicate = new SpawnPolicy(config, 723);
++            var accepted = new List<SpawnChoice>();
++            var counts = new int[3];
++            var trashCounts = new int[2];
++            float now = 0;
++            for (int attempt = 0; accepted.Count < 1000 && attempt < 100000; attempt++, now += 0.05f)
++            {
++                bool selected = policy.TryChoose(now, 7, 0.75f, out var choice);
++                Assert.That(duplicate.TryChoose(now, 7, 0.75f, out var same), Is.EqualTo(selected));
++                if (!selected) continue;
++                Assert.That(same, Is.EqualTo(choice));
++                Assert.That(choice.X, Is.InRange(-7.5f, 7.5f));
++                Assert.That(choice.ArrivalTime, Is.EqualTo(now + 7 / config.speed).Within(0.001f));
++                if (difficulty == DifficultyId.Easy) Assert.That(choice.Kind, Is.EqualTo(ObjectKind.Food));
++                if (choice.Kind == ObjectKind.Food) counts[choice.DefinitionIndex]++;
++                else trashCounts[choice.DefinitionIndex]++;
++                if (difficulty == DifficultyId.Easy) Assert.That(choice.X, Is.EqualTo(new[] { -6f, 0, 6 }[accepted.Count % 3]));
++                accepted.Add(choice);
++            }
++            Assert.That(accepted.Count, Is.EqualTo(1000));
++            foreach (int count in counts) Assert.That(count, Is.GreaterThan(200));
++            if (difficulty != DifficultyId.Easy)
++                foreach (int count in trashCounts) Assert.That(count, Is.GreaterThan(30));
++            var foods = accepted.FindAll(c => c.Kind == ObjectKind.Food);
++            foods.Insert(0, new SpawnChoice(ObjectKind.Food, 0, 0, 0));
++            float window = 0.25f / config.speed;
++            for (int i = 1; i < foods.Count; i++)
++            {
++                var before = foods[i - 1];
++                var after = foods[i];
++                float departure = Mathf.Max(before.ArrivalTime + window, after.ArrivalTime - 7 / config.speed);
++                float travelTime = after.ArrivalTime - window - departure;
++                Assert.That(Mathf.Abs(after.X - before.X), Is.LessThanOrEqualTo(7 * travelTime + 0.001f));
++                foreach (var trash in accepted)
++                {
++                    if (trash.Kind != ObjectKind.Trash || trash.ArrivalTime + window < before.ArrivalTime ||
++                        trash.ArrivalTime - window > after.ArrivalTime) continue;
++                    float lowTime = Mathf.Max(before.ArrivalTime, trash.ArrivalTime - window);
++                    float highTime = Mathf.Min(after.ArrivalTime, trash.ArrivalTime + window);
++                    float lowX = PathX(before, after, lowTime, window, departure);
++                    float highX = PathX(before, after, highTime, window, departure);
++                    Assert.That(trash.X < Mathf.Min(lowX, highX) - 0.75f ||
++                        trash.X > Mathf.Max(lowX, highX) + 0.75f, Is.True,
++                        $"Trash at {trash.X}/{trash.ArrivalTime} crosses food path {before.X}->{after.X}");
++                }
++            }
++        }
++
++        private static float PathX(SpawnChoice before, SpawnChoice after, float time, float window, float departure)
++        {
++            float t = Mathf.Clamp01((time - departure) / (after.ArrivalTime - window - departure));
++            return Mathf.Lerp(before.X, after.X, t);
++        }
++
++        [TestCase(0)] [TestCase(-1)] [TestCase(float.NaN)] [TestCase(float.PositiveInfinity)]
++        public void InvalidFallSpeedRejectsConfig(float speed)
++        { Configure(DifficultyId.Normal); config.speed = speed; Assert.Throws<ArgumentException>(() => config.Validate()); }
++
++        [TestCase(0)] [TestCase(-1)] [TestCase(float.NaN)] [TestCase(float.PositiveInfinity)]
++        public void InvalidIntervalRejectsConfig(float interval)
++        { Configure(DifficultyId.Normal); config.interval = interval; Assert.Throws<ArgumentException>(() => config.Validate()); }
++
++        [TestCase(-0.1f)] [TestCase(1.1f)] [TestCase(float.NaN)]
++        public void InvalidTrashProbabilityRejectsConfig(float probability)
++        { Configure(DifficultyId.Normal); config.trashProbability = probability; Assert.Throws<ArgumentException>(() => config.Validate()); }
++
++        [TestCase(8)] [TestCase(float.NaN)] [TestCase(float.NegativeInfinity)]
++        public void UnreachableLaneRejectsConfig(float lane)
++        { Configure(DifficultyId.Normal); config.lanes = new[] { lane }; Assert.Throws<ArgumentException>(() => config.Validate()); }
++
++        [Test]
++        public void EmptyLanesAndInvalidCatchGeometryRejectPolicy()
++        {
++            Configure(DifficultyId.Normal); config.lanes = Array.Empty<float>();
++            Assert.Throws<ArgumentException>(() => new SpawnPolicy(config, 1));
++            Configure(DifficultyId.Normal);
++            Assert.Throws<ArgumentException>(() => new SpawnPolicy(config, 1, float.NaN));
++            Assert.Throws<ArgumentException>(() => new SpawnPolicy(config, 1, -1));
++        }
++    }
++}
+diff --git a/Assets/CPS/Tests/EditMode/SpawnPolicyTests.cs.meta b/Assets/CPS/Tests/EditMode/SpawnPolicyTests.cs.meta
+new file mode 100644
+index 0000000..1a8205a
+--- /dev/null
++++ b/Assets/CPS/Tests/EditMode/SpawnPolicyTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 782b922ce20af2144bf7a5f4af68f371
+\ No newline at end of file
+diff --git a/Assets/CPS/Tests/PlayMode/FallingObjectTests.cs b/Assets/CPS/Tests/PlayMode/FallingObjectTests.cs
+new file mode 100644
+index 0000000..d87a998
+--- /dev/null
++++ b/Assets/CPS/Tests/PlayMode/FallingObjectTests.cs
+@@ -0,0 +1,155 @@
++using System.Collections.Generic;
++using System.Reflection;
++using NUnit.Framework;
++using UnityEngine;
++
++namespace CPS.KitchenCatch.Tests
++{
++    public sealed class FallingObjectTests
++    {
++        private readonly List<Object> owned = new List<Object>();
++        private FallingObject falling;
++        private FallingObjectDefinition food;
++        [SetUp]
++        public void SetUp()
++        {
++            food = Own(ScriptableObject.CreateInstance<FallingObjectDefinition>());
++            food.kind = ObjectKind.Food;
++            falling = Own(new GameObject("Falling")).AddComponent<FallingObject>();
++        }
++        [TearDown] public void TearDown() { foreach (var item in owned) Object.DestroyImmediate(item); owned.Clear(); }
++        private T Own<T>(T value) where T : Object { owned.Add(value); return value; }
++
++        [TestCase(1f / 30)] [TestCase(1f)]
++        public void SweptCrossingCatchesExactlyOnceBeforeMiss(float dt)
++        {
++            int reports = 0;
++            ObjectOutcome? outcome = null;
++            falling.Spawn(1, food, new Vector2(0, 0.5f), 30);
++            falling.BindResolution((id, definition, result) => { reports++; outcome = result; });
++            falling.Step(dt, new Bounds(Vector3.zero, new Vector3(1.5f, 0.5f, 0.2f)));
++            falling.Step(dt, new Bounds(Vector3.zero, new Vector3(1.5f, 0.5f, 0.2f)));
++            Assert.That(outcome, Is.EqualTo(ObjectOutcome.Caught));
++            Assert.That(reports, Is.EqualTo(1));
++        }
++
++        [Test]
++        public void CrossingOutsideCatchWidthReportsOneMiss()
++        {
++            var outcomes = new List<ObjectOutcome>();
++            falling.Spawn(1, food, new Vector2(2, 1), 3);
++            falling.BindResolution((id, definition, result) => outcomes.Add(result));
++            falling.Step(1, new Bounds(Vector3.zero, new Vector3(1.5f, 0.5f, 0.2f)));
++            falling.Step(1, new Bounds(Vector3.zero, new Vector3(1.5f, 0.5f, 0.2f)));
++            Assert.That(outcomes, Is.EqualTo(new[] { ObjectOutcome.Missed }));
++        }
++
++        [Test]
++        public void ReuseRejectsStaleIdAndClearsOldCallback()
++        {
++            int oldReports = 0, newReports = 0;
++            falling.Spawn(10, food, new Vector2(0, 7), 2);
++            falling.BindResolution((id, definition, outcome) => oldReports++);
++            falling.Despawn();
++            falling.Spawn(11, food, new Vector2(0, 7), 2);
++            Assert.That(falling.TryResolve(10, ObjectOutcome.Caught), Is.False);
++            falling.BindResolution((id, definition, outcome) => newReports++);
++            Assert.That(falling.TryResolve(11, ObjectOutcome.Caught), Is.True);
++            Assert.That(falling.TryResolve(11, ObjectOutcome.Missed), Is.False);
++            Assert.That(oldReports, Is.Zero);
++            Assert.That(newReports, Is.EqualTo(1));
++        }
++
++        [Test]
++        public void SpawnerClearReuseKeepsIdsFreshAndOldReportSilent()
++        {
++            var spawner = Own(new GameObject("Spawner")).AddComponent<FallingObjectSpawner>();
++            var player = Own(new GameObject("Player")).AddComponent<PlayerController>();
++            var config = Own(ScriptableObject.CreateInstance<DifficultyConfig>());
++            config.difficulty = DifficultyId.Easy; config.speed = 2; config.interval = 1.4f;
++            config.lanes = new[] { -6f, 0, 6 };
++            var trash = Own(ScriptableObject.CreateInstance<FallingObjectDefinition>()); trash.kind = ObjectKind.Trash;
++            Set(spawner, "player", player); Set(spawner, "prefab", falling);
++            Set(spawner, "foodDefinitions", new[] { food, food, food });
++            Set(spawner, "trashDefinitions", new[] { trash, trash });
++            int oldReports = 0;
++            spawner.Begin(config, (id, definition, outcome) => oldReports++);
++            spawner.Step(0.01f);
++            Assert.That(spawner.ActiveCount, Is.EqualTo(1));
++            var pooled = spawner.GetComponentInChildren<FallingObject>();
++            long oldId = pooled.SpawnId;
++            spawner.StopAndClear();
++            Assert.That(spawner.ActiveCount, Is.Zero);
++            int newReports = 0;
++            long newId = 0;
++            spawner.Begin(config, (id, definition, outcome) => { newReports++; newId = id; });
++            spawner.Step(0.01f);
++            Assert.That(pooled.TryResolve(oldId, ObjectOutcome.Caught), Is.False);
++            spawner.Step(4);
++            Assert.That(oldReports, Is.Zero);
++            Assert.That(newReports, Is.EqualTo(1));
++            Assert.That(newId, Is.GreaterThan(oldId));
++            spawner.StopAndClear();
++            Assert.That(spawner.ActiveCount, Is.Zero);
++        }
++
++        [TestCase(1)] [TestCase(300)] [TestCase(600)] [TestCase(1200)]
++        public void StepRatePreservesSpawnCadencePositionsAndSingleReports(int steps)
++        {
++            var spawner = CreateSpawner(out var config, out _);
++            config.lanes = new[] { 0f };
++            var ids = new HashSet<long>();
++            spawner.Begin(config, (id, definition, outcome) => Assert.That(ids.Add(id), Is.True));
++            for (int i = 0; i < steps; i++) spawner.Step(10f / steps);
++            Assert.That(ids.Count + spawner.ActiveCount, Is.EqualTo(8));
++            Assert.That(ids.Count, Is.EqualTo(5));
++            var remaining = new List<float>();
++            foreach (var item in spawner.GetComponentsInChildren<FallingObject>()) remaining.Add(item.transform.position.y);
++            remaining.Sort();
++            Assert.That(remaining, Is.EqualTo(new[] { 1.5f, 4.3f, 7.1f }).Within(0.01f));
++        }
++
++        [Test]
++        public void ValidationNamesMissingReferencesAndInvalidCatchGeometryWithoutStartingPool()
++        {
++            var empty = Own(new GameObject("EmptySpawner")).AddComponent<FallingObjectSpawner>();
++            Assert.That(empty.GetValidationError(null), Does.Contain("player"));
++            var spawner = CreateSpawner(out var config, out var player);
++            Set(player, "catchZoneHalfExtents", new Vector3(float.NaN, 0.25f, 0.1f));
++            Assert.That(spawner.GetValidationError(config), Is.Not.Null);
++            Assert.That(spawner.GetValidationError(config), Does.Contain("Catch zone"));
++            Assert.That(spawner.ActiveCount, Is.Zero);
++        }
++
++        [Test]
++        public void ActiveObjectsStayBoundedAndClearDuringOutcomeCallbackIsSafe()
++        {
++            var spawner = CreateSpawner(out var config, out var player);
++            config.lanes = new[] { 0f }; config.interval = 0.0001f;
++            config.speed = 0.1f;
++            Set(player, "catchZoneHalfExtents", new Vector3(0.75f, 0, 0.1f));
++            spawner.Begin(config, (id, definition, outcome) => spawner.StopAndClear());
++            for (int i = 0; i < 30; i++) spawner.Step(0.1f);
++            Assert.That(spawner.ActiveCount, Is.EqualTo(16));
++            spawner.Step(100);
++            Assert.That(spawner.ActiveCount, Is.Zero);
++        }
++
++        private FallingObjectSpawner CreateSpawner(out DifficultyConfig config, out PlayerController player)
++        {
++            var spawner = Own(new GameObject("Spawner")).AddComponent<FallingObjectSpawner>();
++            player = Own(new GameObject("Player")).AddComponent<PlayerController>();
++            config = Own(ScriptableObject.CreateInstance<DifficultyConfig>());
++            config.difficulty = DifficultyId.Easy; config.speed = 2; config.interval = 1.4f;
++            config.lanes = new[] { -6f, 0, 6 };
++            var trash = Own(ScriptableObject.CreateInstance<FallingObjectDefinition>()); trash.kind = ObjectKind.Trash;
++            Set(spawner, "player", player); Set(spawner, "prefab", falling);
++            Set(spawner, "foodDefinitions", new[] { food, food, food });
++            Set(spawner, "trashDefinitions", new[] { trash, trash });
++            return spawner;
++        }
++
++        private static void Set(object instance, string field, object value)
++        { instance.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(instance, value); }
++    }
++}
+diff --git a/Assets/CPS/Tests/PlayMode/FallingObjectTests.cs.meta b/Assets/CPS/Tests/PlayMode/FallingObjectTests.cs.meta
+new file mode 100644
+index 0000000..cd628e2
+--- /dev/null
++++ b/Assets/CPS/Tests/PlayMode/FallingObjectTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 3c125f8f0b8a9434d827116d70fe1a80
+\ No newline at end of file

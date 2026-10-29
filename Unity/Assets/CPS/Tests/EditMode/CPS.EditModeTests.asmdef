@@ -1,0 +1,9 @@
+{
+    "name": "CPS.EditModeTests",
+    "rootNamespace": "CPS.KitchenCatch.Tests",
+    "references": ["CPS.Runtime", "CPS.Editor"],
+    "overrideReferences": true,
+    "precompiledReferences": ["nunit.framework.dll", "Newtonsoft.Json.dll"],
+    "includePlatforms": ["Editor"],
+    "optionalUnityReferences": ["TestAssemblies"]
+}

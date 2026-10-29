@@ -1,0 +1,492 @@
+fileFormatVersion: 2
+guid: 5413a874e58c86a43b1a325f07937511
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -6580153753997436324
+    second: mascot-body-atlas-v1_0
+  - first:
+      213: 4656048442880199676
+    second: mascot-body-atlas-v1_1
+  - first:
+      213: -3186489156158345083
+    second: mascot-body-atlas-v1_2
+  - first:
+      213: 8829355865967994121
+    second: mascot-body-atlas-v1_3
+  - first:
+      213: -4983593732257947619
+    second: mascot-body-atlas-v1_4
+  - first:
+      213: 3129412244035503335
+    second: mascot-body-atlas-v1_5
+  - first:
+      213: 7587469923241024002
+    second: mascot-body-atlas-v1_6
+  - first:
+      213: 221005377202027256
+    second: mascot-body-atlas-v1_7
+  - first:
+      213: -9198729720325565367
+    second: mascot-body-atlas-v1_8
+  - first:
+      213: 6754174679396546415
+    second: mascot-body-atlas-v1_9
+  - first:
+      213: 6883204825449379775
+    second: mascot-body-atlas-v1_10
+  - first:
+      213: 8865399283913714869
+    second: mascot-body-atlas-v1_11
+  - first:
+      213: -7646295519879342871
+    second: mascot-body-atlas-v1_12
+  - first:
+      213: -7472398892639016840
+    second: mascot-body-atlas-v1_13
+  - first:
+      213: 682589603598157679
+    second: mascot-body-atlas-v1_14
+  - first:
+      213: 8939492415959901161
+    second: mascot-body-atlas-v1_15
+  - first:
+      213: 1431716049215929002
+    second: mascot-body-atlas-v1_16
+  - first:
+      213: -8733019556551965572
+    second: mascot-body-atlas-v1_17
+  - first:
+      213: 2485012547359340085
+    second: mascot-body-atlas-v1_18
+  - first:
+      213: -4192682375106151874
+    second: mascot-body-atlas-v1_19
+  - first:
+      213: -2786532276412177616
+    second: mascot-body-atlas-v1_20
+  - first:
+      213: -8442112274048331848
+    second: IdleA
+  - first:
+      213: 666294912167826570
+    second: IdleBlink
+  - first:
+      213: -1821901497363150241
+    second: RunA
+  - first:
+      213: 6337296105297539874
+    second: RunB
+  - first:
+      213: -1314043762705816177
+    second: RunC
+  - first:
+      213: -4815716690849988542
+    second: RunD
+  - first:
+      213: 2620530548627789877
+    second: EatOpen
+  - first:
+      213: 4259448317700732869
+    second: EatChomp
+  - first:
+      213: -6678854413950835281
+    second: Hurt
+  - first:
+      213: 702221926039827947
+    second: DeadXX
+  - first:
+      213: 1806238277563556728
+    second: TriumphUp
+  - first:
+      213: 1277086238658925924
+    second: TriumphLand
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 180
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: IdleA
+      rect:
+        serializedVersion: 2
+        x: 40
+        y: 730
+        width: 295
+        height: 224
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8bf426f6d9797da80800000000000000
+      internalID: -8442112274048331848
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IdleBlink
+      rect:
+        serializedVersion: 2
+        x: 397
+        y: 730
+        width: 289
+        height: 224
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a84d96341b72f3900800000000000000
+      internalID: 666294912167826570
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RunA
+      rect:
+        serializedVersion: 2
+        x: 762
+        y: 733
+        width: 283
+        height: 221
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f5acae1bd3e47b6e0800000000000000
+      internalID: -1821901497363150241
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RunB
+      rect:
+        serializedVersion: 2
+        x: 1128
+        y: 732
+        width: 268
+        height: 216
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 223f9b83b3992f750800000000000000
+      internalID: 6337296105297539874
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RunC
+      rect:
+        serializedVersion: 2
+        x: 43
+        y: 419
+        width: 295
+        height: 220
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f852a90f82493cde0800000000000000
+      internalID: -1314043762705816177
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RunD
+      rect:
+        serializedVersion: 2
+        x: 402
+        y: 422
+        width: 309
+        height: 208
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 24087f63f232b2db0800000000000000
+      internalID: -4815716690849988542
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EatOpen
+      rect:
+        serializedVersion: 2
+        x: 754
+        y: 399
+        width: 325
+        height: 254
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 538d40a56aefd5420800000000000000
+      internalID: 2620530548627789877
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EatChomp
+      rect:
+        serializedVersion: 2
+        x: 1139
+        y: 399
+        width: 263
+        height: 234
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5c7ffab6da99c1b30800000000000000
+      internalID: 4259448317700732869
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Hurt
+      rect:
+        serializedVersion: 2
+        x: 49
+        y: 79
+        width: 265
+        height: 247
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fa529edeb41ff43a0800000000000000
+      internalID: -6678854413950835281
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeadXX
+      rect:
+        serializedVersion: 2
+        x: 380
+        y: 85
+        width: 344
+        height: 167
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: be538170f1bceb900800000000000000
+      internalID: 702221926039827947
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TriumphUp
+      rect:
+        serializedVersion: 2
+        x: 767
+        y: 85
+        width: 294
+        height: 257
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 873a3e1c42c011910800000000000000
+      internalID: 1806238277563556728
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TriumphLand
+      rect:
+        serializedVersion: 2
+        x: 1106
+        y: 79
+        width: 311
+        height: 223
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4651ec2fa2f19b110800000000000000
+      internalID: 1277086238658925924
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    outline: []
+    customData:
+    physicsShape: []
+    bones: []
+    spriteID: fa3a3da2141d9f44594db29c2d1aed69
+    internalID: 0
+    vertices: []
+    indices:
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      DeadXX: 702221926039827947
+      EatChomp: 4259448317700732869
+      EatOpen: 2620530548627789877
+      Hurt: -6678854413950835281
+      IdleA: -8442112274048331848
+      IdleBlink: 666294912167826570
+      RunA: -1821901497363150241
+      RunB: 6337296105297539874
+      RunC: -1314043762705816177
+      RunD: -4815716690849988542
+      TriumphLand: 1277086238658925924
+      TriumphUp: 1806238277563556728
+  mipmapLimitGroupName:
+  pSDRemoveMatte: 0
+  userData:
+  assetBundleName:
+  assetBundleVariant:

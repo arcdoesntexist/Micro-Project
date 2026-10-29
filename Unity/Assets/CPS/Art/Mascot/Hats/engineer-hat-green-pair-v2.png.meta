@@ -1,0 +1,347 @@
+fileFormatVersion: 2
+guid: 9ed505628458b9146b15e3373be4bd73
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -3005867686242099861
+    second: engineer-hat-green-pair-v2_0
+  - first:
+      213: 4031695734686957723
+    second: engineer-hat-green-pair-v2_1
+  - first:
+      213: 7601067462496110116
+    second: engineer-hat-green-pair-v2_2
+  - first:
+      213: 8531231372283099136
+    second: engineer-hat-green-pair-v2_3
+  - first:
+      213: 8391262195285551551
+    second: engineer-hat-green-pair-v2_4
+  - first:
+      213: -2446801925042364795
+    second: engineer-hat-green-pair-v2_5
+  - first:
+      213: 8689932065930987523
+    second: engineer-hat-green-pair-v2_6
+  - first:
+      213: 8402782641850161898
+    second: engineer-hat-green-pair-v2_7
+  - first:
+      213: -7973898591255292236
+    second: engineer-hat-green-pair-v2_8
+  - first:
+      213: -4941376920647341375
+    second: engineer-hat-green-pair-v2_9
+  - first:
+      213: 5843785495758471650
+    second: engineer-hat-green-pair-v2_10
+  - first:
+      213: -9158800053068188868
+    second: engineer-hat-green-pair-v2_11
+  - first:
+      213: 3706538440966134367
+    second: engineer-hat-green-pair-v2_12
+  - first:
+      213: -8680113495025032078
+    second: engineer-hat-green-pair-v2_13
+  - first:
+      213: -5200953612649979918
+    second: engineer-hat-green-pair-v2_14
+  - first:
+      213: -6678108263585840861
+    second: engineer-hat-green-pair-v2_15
+  - first:
+      213: 4478483970543198822
+    second: engineer-hat-green-pair-v2_16
+  - first:
+      213: -4336749169788406494
+    second: engineer-hat-green-pair-v2_17
+  - first:
+      213: -5974343261285984123
+    second: engineer-hat-green-pair-v2_18
+  - first:
+      213: 348287055556610522
+    second: engineer-hat-green-pair-v2_19
+  - first:
+      213: -2606012139469857381
+    second: engineer-hat-green-pair-v2_20
+  - first:
+      213: 772407039374772288
+    second: engineer-hat-green-pair-v2_21
+  - first:
+      213: -2650320835456752649
+    second: engineer-hat-green-pair-v2_22
+  - first:
+      213: 6011417545488890276
+    second: engineer-hat-green-pair-v2_23
+  - first:
+      213: 8419901346161623015
+    second: engineer-hat-green-pair-v2_24
+  - first:
+      213: -1239446727355177561
+    second: engineer-hat-green-pair-v2_25
+  - first:
+      213: 8222624779746063800
+    second: engineer-hat-green-pair-v2_26
+  - first:
+      213: -7066059006943077758
+    second: engineer-hat-green-pair-v2_27
+  - first:
+      213: 6730473986381909507
+    second: engineer-hat-green-pair-v2_28
+  - first:
+      213: 6807683041304271115
+    second: engineer-hat-green-pair-v2_29
+  - first:
+      213: 2974454342505134950
+    second: engineer-hat-green-pair-v2_30
+  - first:
+      213: -8326717772476935709
+    second: engineer-hat-green-pair-v2_31
+  - first:
+      213: -6549881768029349054
+    second: engineer-hat-green-pair-v2_32
+  - first:
+      213: 4005391219980160915
+    second: engineer-hat-green-pair-v2_33
+  - first:
+      213: -4686647492125929178
+    second: engineer-hat-green-pair-v2_34
+  - first:
+      213: -4803058856344672202
+    second: engineer-hat-green-pair-v2_35
+  - first:
+      213: -3507072265523372078
+    second: engineer-hat-green-pair-v2_36
+  - first:
+      213: -2735193939176665613
+    second: engineer-hat-green-pair-v2_37
+  - first:
+      213: 1051809795309973389
+    second: engineer-hat-green-pair-v2_38
+  - first:
+      213: -8817797568288097868
+    second: engineer-hat-green-pair-v2_39
+  - first:
+      213: -652369964114192880
+    second: engineer-hat-green-pair-v2_40
+  - first:
+      213: 8941072462727128944
+    second: engineer-hat-green-pair-v2_41
+  - first:
+      213: -3263187262667124562
+    second: engineer-hat-green-pair-v2_42
+  - first:
+      213: -34410728341210236
+    second: engineer-hat-green-pair-v2_43
+  - first:
+      213: 6481007960381646476
+    second: engineer-hat-green-pair-v2_44
+  - first:
+      213: 5035532647560769494
+    second: engineer-hat-green-pair-v2_45
+  - first:
+      213: 2532100843154090941
+    second: engineer-hat-green-pair-v2_46
+  - first:
+      213: 3930015382873883506
+    second: engineer-hat-green-pair-v2_47
+  - first:
+      213: -2565127936277096617
+    second: engineer-hat-green-pair-v2_48
+  - first:
+      213: -6711788020894344427
+    second: engineer-hat-green-pair-v2_49
+  - first:
+      213: 3316262779583633195
+    second: engineer-hat-green-pair-v2_50
+  - first:
+      213: 429882088993029623
+    second: engineer-hat-green-pair-v2_51
+  - first:
+      213: -7397768591340185927
+    second: engineer-hat-green-pair-v2_52
+  - first:
+      213: 5390753199054704277
+    second: engineer-hat-green-pair-v2_53
+  - first:
+      213: 1069961589469314790
+    second: engineer-hat-green-pair-v2_54
+  - first:
+      213: -8633138762913827280
+    second: engineer-hat-green-pair-v2_55
+  - first:
+      213: -2352734266015535937
+    second: engineer-hat-green-pair-v2_56
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: EngineerHatGreenRight
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 142
+        width: 863
+        height: 603
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b58ee7df5a269ff4e924eafb23b0ba5a
+      internalID: 1915685326
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EngineerHatGreenLeft
+      rect:
+        serializedVersion: 2
+        x: 895
+        y: 142
+        width: 863
+        height: 603
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8a86104d98d92924f9de772c9165cd81
+      internalID: 1648796915
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: ff726a7fb6b010940905f56c22094dcb
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      EngineerHatGreenLeft: 1648796915
+      EngineerHatGreenRight: 1915685326
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

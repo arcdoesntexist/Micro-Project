@@ -1,0 +1,88 @@
+# Review package: e43ccaedcad088b2a6efc07695400b855de86a5e..bbbf39c22d3f38fb71d393bb63aa42c0601c9c51
+
+## Commits
+bbbf39c test: preserve scene state in webgl validation
+
+## Files changed
+ Assets/CPS/Tests/EditMode/BuildValidationTests.cs | 40 ++++++++++++++++-------
+ 1 file changed, 28 insertions(+), 12 deletions(-)
+
+## Diff
+diff --git a/Assets/CPS/Tests/EditMode/BuildValidationTests.cs b/Assets/CPS/Tests/EditMode/BuildValidationTests.cs
+index 236d909..497c0f6 100644
+--- a/Assets/CPS/Tests/EditMode/BuildValidationTests.cs
++++ b/Assets/CPS/Tests/EditMode/BuildValidationTests.cs
+@@ -56,45 +56,61 @@ public void MissingDifficultyReferenceBlocksValidation()
+             }
+             finally
+             {
+                 Object.DestroyImmediate(instance);
+             }
+         }
+ 
+         [Test]
+         public void GameplaySceneEffectiveMissingPlayerOverrideBlocksValidation()
+         {
+-            const string scenePath = "Assets/CPS/Tests/TempBuildValidationScene.unity";
+-            SceneSetup[] originalSetup = EditorSceneManager.GetSceneManagerSetup();
+-            bool restoreUntitledScene = originalSetup.Length == 0 ||
+-                (originalSetup.Length == 1 && string.IsNullOrEmpty(originalSetup[0].path));
+-            Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
++            string suffix = Guid.NewGuid().ToString("N");
++            string scenePath = $"Assets/CPS/Tests/TempBuildValidationScene-{suffix}.unity";
++            Scene originalActiveScene = SceneManager.GetActiveScene();
++            int originalSceneCount = SceneManager.sceneCount;
++            bool originalSceneDirty = originalActiveScene.IsValid() && originalActiveScene.isDirty;
++            Scene scene = default;
+             try
+             {
+-                var instance = (GameObject)PrefabUtility.InstantiatePrefab(LoadTemplate().gameObject, scene);
+-                var serialized = new SerializedObject(instance.GetComponent<GameSessionController>());
++                Assert.That(AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath), Is.Null);
++                Assert.That(AssetDatabase.CopyAsset("Assets/CPS/Scenes/Gameplay.unity", scenePath), Is.True);
++                scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
++                GameSessionController controller = null;
++                foreach (var root in scene.GetRootGameObjects())
++                {
++                    controller = root.GetComponentInChildren<GameSessionController>(true);
++                    if (controller != null) break;
++                }
++                Assert.That(controller, Is.Not.Null);
++                var serialized = new SerializedObject(controller);
+                 serialized.FindProperty("player").objectReferenceValue = null;
+                 serialized.ApplyModifiedPropertiesWithoutUndo();
+                 Assert.That(EditorSceneManager.SaveScene(scene, scenePath), Is.True);
++                Assert.That(EditorSceneManager.CloseScene(scene, true), Is.True);
++                Assert.That(SceneManager.GetActiveScene().handle, Is.EqualTo(originalActiveScene.handle));
++                Assert.That(SceneManager.sceneCount, Is.EqualTo(originalSceneCount));
+ 
+                 var error = Assert.Throws<InvalidOperationException>(() => WebGLBuild.ValidateGameplayScene(scenePath));
+ 
+                 Assert.That(error.Message, Does.Contain("player"));
+             }
+             finally
+             {
+-                if (restoreUntitledScene)
+-                    EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+-                else
+-                    EditorSceneManager.RestoreSceneManagerSetup(originalSetup);
+-                AssetDatabase.DeleteAsset(scenePath);
++                if (scene.IsValid() && scene.isLoaded) EditorSceneManager.CloseScene(scene, true);
++                if (AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath) != null)
++                    AssetDatabase.DeleteAsset(scenePath);
+             }
++
++            Assert.That(SceneManager.GetActiveScene().handle, Is.EqualTo(originalActiveScene.handle));
++            Assert.That(SceneManager.sceneCount, Is.EqualTo(originalSceneCount));
++            if (originalActiveScene.IsValid()) Assert.That(originalActiveScene.isDirty, Is.EqualTo(originalSceneDirty));
++            Assert.That(AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath), Is.Null);
+         }
+ 
+         [Test]
+         public void MismatchedControllerAndSpawnerPlayerBlocksValidation()
+         {
+             var instance = Object.Instantiate(LoadTemplate().gameObject);
+             var differentPlayer = new GameObject("DifferentPlayer").AddComponent<PlayerController>();
+             try
+             {
+                 var spawner = instance.GetComponent<FallingObjectSpawner>();

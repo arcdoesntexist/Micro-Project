@@ -1,0 +1,418 @@
+fileFormatVersion: 2
+guid: dcf96fc92f4c978489af1439c38b080c
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 3047292454964923222
+    second: cafe-props-atlas-v1_0
+  - first:
+      213: 650082022416816537
+    second: cafe-props-atlas-v1_1
+  - first:
+      213: -2064320842023584947
+    second: cafe-props-atlas-v1_2
+  - first:
+      213: 3935807409719083747
+    second: cafe-props-atlas-v1_3
+  - first:
+      213: -2886578030115131433
+    second: cafe-props-atlas-v1_4
+  - first:
+      213: 5757393567375307569
+    second: cafe-props-atlas-v1_5
+  - first:
+      213: -494118748653584800
+    second: cafe-props-atlas-v1_6
+  - first:
+      213: -2143239309307357068
+    second: cafe-props-atlas-v1_7
+  - first:
+      213: 4622919006574056337
+    second: cafe-props-atlas-v1_8
+  - first:
+      213: -3917048969781433488
+    second: cafe-props-atlas-v1_9
+  - first:
+      213: 22816553306628187
+    second: cafe-props-atlas-v1_10
+  - first:
+      213: 4360312160093143115
+    second: cafe-props-atlas-v1_11
+  - first:
+      213: 1845021835203171354
+    second: cafe-props-atlas-v1_12
+  - first:
+      213: 5274092270789379848
+    second: cafe-props-atlas-v1_13
+  - first:
+      213: 5443913891407882786
+    second: cafe-props-atlas-v1_14
+  - first:
+      213: 7271698923525864097
+    second: cafe-props-atlas-v1_15
+  - first:
+      213: 8797165117285829673
+    second: cafe-props-atlas-v1_16
+  - first:
+      213: -8644765250298450466
+    second: cafe-props-atlas-v1_17
+  - first:
+      213: 1825656737797422810
+    second: cafe-props-atlas-v1_18
+  - first:
+      213: 2159800638277041461
+    second: cafe-props-atlas-v1_19
+  - first:
+      213: 1342212322295163285
+    second: cafe-props-atlas-v1_20
+  - first:
+      213: -4208038462672054589
+    second: cafe-props-atlas-v1_21
+  - first:
+      213: 6103851043811004990
+    second: cafe-props-atlas-v1_22
+  - first:
+      213: 4323503035109100698
+    second: cafe-props-atlas-v1_23
+  - first:
+      213: -245429378587481001
+    second: cafe-props-atlas-v1_24
+  - first:
+      213: 754246920072047047
+    second: cafe-props-atlas-v1_25
+  - first:
+      213: -9198128619727143133
+    second: cafe-props-atlas-v1_26
+  - first:
+      213: -5043389872876435650
+    second: cafe-props-atlas-v1_27
+  - first:
+      213: 3138357517359636670
+    second: cafe-props-atlas-v1_28
+  - first:
+      213: 8590080843820575461
+    second: cafe-props-atlas-v1_29
+  - first:
+      213: -9154461185059312432
+    second: cafe-props-atlas-v1_30
+  - first:
+      213: -7970395669347027015
+    second: cafe-props-atlas-v1_31
+  - first:
+      213: 7522457266147075469
+    second: cafe-props-atlas-v1_32
+  - first:
+      213: -5233112685457921714
+    second: cafe-props-atlas-v1_33
+  - first:
+      213: 2375154709810977340
+    second: cafe-props-atlas-v1_34
+  - first:
+      213: 5602781794322418110
+    second: cafe-props-atlas-v1_35
+  - first:
+      213: -7267936910836580012
+    second: cafe-props-atlas-v1_36
+  - first:
+      213: 1356947835841647899
+    second: cafe-props-atlas-v1_37
+  - first:
+      213: -996864696132193861
+    second: cafe-props-atlas-v1_38
+  - first:
+      213: -607074601577129141
+    second: cafe-props-atlas-v1_39
+  - first:
+      213: -1145217983754128510
+    second: cafe-props-atlas-v1_40
+  - first:
+      213: 4751994028727118908
+    second: cafe-props-atlas-v1_41
+  - first:
+      213: -2374770366651309032
+    second: cafe-props-atlas-v1_42
+  - first:
+      213: 5561477158553555332
+    second: cafe-props-atlas-v1_43
+  - first:
+      213: -7265066121659566794
+    second: cafe-props-atlas-v1_44
+  - first:
+      213: -1026072051110453673
+    second: cafe-props-atlas-v1_45
+  - first:
+      213: 5574390180822523008
+    second: cafe-props-atlas-v1_46
+  - first:
+      213: 3176763049814783601
+    second: cafe-props-atlas-v1_47
+  - first:
+      213: 904478362935689045
+    second: cafe-props-atlas-v1_48
+  - first:
+      213: 3808739039985417779
+    second: cafe-props-atlas-v1_49
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 200
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Curtain
+      rect:
+        serializedVersion: 2
+        x: 83
+        y: 461
+        width: 377
+        height: 527
+      alignment: 9
+      pivot: {x: 0.5, y: 1}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 700b313fd82884d4a8c51b398a9db946
+      internalID: -246199188
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PendantLamp
+      rect:
+        serializedVersion: 2
+        x: 617
+        y: 496
+        width: 303
+        height: 484
+      alignment: 9
+      pivot: {x: 0.5, y: 1}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 031dbf23a32a76a4dab7eed9e3494d03
+      internalID: 676724765
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HangingIvy
+      rect:
+        serializedVersion: 2
+        x: 1104
+        y: 401
+        width: 369
+        height: 586
+      alignment: 9
+      pivot: {x: 0.5, y: 1}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1f86d1ed0a90e224790e042a5e7866eb
+      internalID: 1235164531
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: CoffeeCup
+      rect:
+        serializedVersion: 2
+        x: 91
+        y: 83
+        width: 324
+        height: 212
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: eec20eb3e908534489a15695a043686e
+      internalID: -484864326
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PottedFern
+      rect:
+        serializedVersion: 2
+        x: 563
+        y: 58
+        width: 400
+        height: 362
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f207decb2e8b86a4da78eb7bb8b18209
+      internalID: 913712171
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Cookbooks
+      rect:
+        serializedVersion: 2
+        x: 1063
+        y: 66
+        width: 441
+        height: 242
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a29dcfb284ffe4841aff8fb1cfb63faf
+      internalID: 1875822491
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 0c46d92bd8084dc40b0ff5c5849a5c23
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      CoffeeCup: -484864326
+      Cookbooks: 1875822491
+      Curtain: -246199188
+      HangingIvy: 1235164531
+      PendantLamp: 676724765
+      PottedFern: 913712171
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

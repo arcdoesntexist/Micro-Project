@@ -1,0 +1,495 @@
+# Review package: 550e54a3b9107185d01757d67e5379ae84e8fa38..296c3af5b1bab4330ce011e58cb5e793bf7ae188
+
+## Commits
+296c3af fix: stop terminal audio on reset and verify playback
+
+## Files changed
+ Assets/CPS/Presentation/LocalDemoAudio.cs        |  24 +--
+ Assets/CPS/Presentation/MascotPresentation.cs    |   1 +
+ Assets/CPS/Tests/PlayMode/LocalDemoAudioTests.cs | 235 +++++++++++++++++++----
+ 3 files changed, 206 insertions(+), 54 deletions(-)
+
+## Diff
+diff --git a/Assets/CPS/Presentation/LocalDemoAudio.cs b/Assets/CPS/Presentation/LocalDemoAudio.cs
+index bfc4de2..82abe88 100644
+--- a/Assets/CPS/Presentation/LocalDemoAudio.cs
++++ b/Assets/CPS/Presentation/LocalDemoAudio.cs
+@@ -6,29 +6,21 @@ namespace CPS.KitchenCatch
+ {
+     public sealed class LocalDemoAudio : MonoBehaviour
+     {
+         private static LocalDemoAudio instance;
+         private static Func<string, AudioClip> clipResolver = name => Resources.Load<AudioClip>("LocalDemoAudio/" + name);
+         private static bool audioUnlocked;
+         private AudioSource musicSource;
+         private AudioSource runningSource;
+         private string currentScene;
+         private bool wantsRunning;
+-
+-        public AudioClip CurrentMusicClip => musicSource != null ? musicSource.clip : null;
+-        public AudioClip RunningClip => runningSource != null ? runningSource.clip : null;
+-        public bool IsMusicPlaying { get; private set; }
+-        public bool IsRunning { get; private set; }
+-        public bool MusicLoops => musicSource != null && musicSource.loop;
+-        public bool RunningLoops => runningSource != null && runningSource.loop;
+-        public float MusicVolume => musicSource != null ? musicSource.volume : 0;
+-        public float RunningVolume => runningSource != null ? runningSource.volume : 0;
++        private bool isRunning;
+         internal static bool AudioUnlocked => audioUnlocked;
+ 
+         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+         private static void Bootstrap() => EnsureExists();
+ 
+         public static LocalDemoAudio EnsureExists()
+         {
+             if (instance != null) return instance;
+             instance = FindFirstObjectByType<LocalDemoAudio>();
+             if (instance != null) return instance;
+@@ -89,56 +81,56 @@ private void ApplyMusic()
+             string clipName = currentScene == "MainMenu" ? "LobbyMusic_BG" :
+                 currentScene == "Gameplay" ? "GameplayMusic_BG" : null;
+             float volume = currentScene == "MainMenu" ? .20f : .22f;
+             var clip = clipName == null ? null : LoadClip(clipName);
+             if (musicSource.clip != clip)
+             {
+                 musicSource.Stop();
+                 musicSource.clip = clip;
+             }
+             musicSource.volume = volume;
+-            IsMusicPlaying = audioUnlocked && clip != null;
+-            if (IsMusicPlaying && !musicSource.isPlaying) musicSource.Play();
+-            else if (!IsMusicPlaying) musicSource.Stop();
++            bool shouldPlay = audioUnlocked && clip != null;
++            if (shouldPlay && !musicSource.isPlaying) musicSource.Play();
++            else if (!shouldPlay) musicSource.Stop();
+         }
+ 
+         public void SetRunning(bool running)
+         {
+             wantsRunning = running;
+             if (runningSource == null) return;
+             if (runningSource.clip == null) runningSource.clip = LoadClip("Running");
+             ApplyRunning();
+         }
+ 
+         public static void SetMascotRunning(bool running)
+         {
+             if (running) EnsureExists().SetRunning(true);
+             else instance?.SetRunning(false);
+         }
+ 
+         private void ApplyRunning()
+         {
+             bool shouldPlay = audioUnlocked && wantsRunning && currentScene == "Gameplay" && runningSource.clip != null;
+-            if (shouldPlay && !IsRunning) runningSource.Play();
+-            else if (!shouldPlay && IsRunning) runningSource.Stop();
+-            IsRunning = shouldPlay;
++            if (shouldPlay && !isRunning) runningSource.Play();
++            else if (!shouldPlay && isRunning) runningSource.Stop();
++            isRunning = shouldPlay;
+         }
+ 
+         private void OnApplicationPause(bool paused)
+         {
+             if (paused) SetRunning(false);
+         }
+ 
+         private void OnDisable()
+         {
+             if (runningSource != null) runningSource.Stop();
+-            IsRunning = false;
++            isRunning = false;
+             wantsRunning = false;
+         }
+ 
+         private void OnDestroy()
+         {
+             SceneManager.activeSceneChanged -= SceneChanged;
+             if (instance == this) instance = null;
+         }
+     }
+ }
+diff --git a/Assets/CPS/Presentation/MascotPresentation.cs b/Assets/CPS/Presentation/MascotPresentation.cs
+index 0ec853b..b29e628 100644
+--- a/Assets/CPS/Presentation/MascotPresentation.cs
++++ b/Assets/CPS/Presentation/MascotPresentation.cs
+@@ -164,20 +164,21 @@ private void SpawnBurst()
+         }
+ 
+         public void ResetPresentation()
+         {
+             terminal = false;
+             dying = false;
+             movement = 0;
+             terminalSeconds = reactionSeconds = 0;
+             burstStarted = dissolveStarted = false;
+             LocalDemoAudio.SetMascotRunning(false);
++            if (audioSource != null) audioSource.Stop();
+             foreach (var item in bursts) burstPool.Release(item);
+             bursts.Clear();
+             if (dissolve != null) dissolve.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+             transform.localPosition = originalPosition;
+             transform.localRotation = originalRotation;
+             transform.localScale = originalScale;
+             if (body != null) { body.color = Color.white; body.enabled = true; body.flipX = false; }
+             if (hat != null) { hat.color = Color.white; hat.enabled = true; hat.flipX = false; }
+             PlayAnimation("Idle");
+         }
+diff --git a/Assets/CPS/Tests/PlayMode/LocalDemoAudioTests.cs b/Assets/CPS/Tests/PlayMode/LocalDemoAudioTests.cs
+index f63bfd7..e41f3e5 100644
+--- a/Assets/CPS/Tests/PlayMode/LocalDemoAudioTests.cs
++++ b/Assets/CPS/Tests/PlayMode/LocalDemoAudioTests.cs
+@@ -1,156 +1,315 @@
+ using System;
++using System.Collections;
+ using System.Collections.Generic;
+ using System.Reflection;
+ using NUnit.Framework;
+ using UnityEngine;
++using UnityEngine.InputSystem;
++using UnityEngine.SceneManagement;
++using UnityEngine.TestTools;
+ using Object = UnityEngine.Object;
+ 
+ namespace CPS.KitchenCatch.Tests
+ {
+-    public sealed class LocalDemoAudioTests
++    public sealed class LocalDemoAudioTests : InputTestFixture
+     {
+         private readonly List<AudioClip> clips = new List<AudioClip>();
++        private readonly List<Scene> scenes = new List<Scene>();
++        private Scene originalScene;
+ 
+         [SetUp]
+-        public void SetUp()
++        public override void Setup()
+         {
++            base.Setup();
+             DestroyDirectors();
+             SetResolver(name => null);
+             SetUnlocked(false);
++            originalScene = SceneManager.GetActiveScene();
+         }
+ 
+         [TearDown]
+-        public void TearDown()
++        public override void TearDown()
+         {
+-            DestroyDirectors();
+-            SetResolver(null);
+-            foreach (var clip in clips) Object.DestroyImmediate(clip);
+-            clips.Clear();
++            try
++            {
++                DestroyDirectors();
++                SetResolver(null);
++                foreach (var clip in clips) Object.DestroyImmediate(clip);
++                clips.Clear();
++            }
++            finally
++            {
++                SetUnlocked(false);
++                base.TearDown();
++            }
+         }
+ 
+-        [Test]
+-        public void MissingLocalAssetsRemainSilentAcrossSupportedScenes()
++        [UnityTearDown]
++        public IEnumerator CleanupScenes()
++        {
++            if (originalScene.IsValid() && originalScene.isLoaded) SceneManager.SetActiveScene(originalScene);
++            foreach (var scene in scenes)
++                if (scene.IsValid() && scene.isLoaded) yield return SceneManager.UnloadSceneAsync(scene);
++            scenes.Clear();
++        }
++
++        [UnityTest]
++        public IEnumerator MissingLocalAssetsRemainSilentAcrossSupportedScenes()
+         {
+             var director = LocalDemoAudio.EnsureExists();
+ 
+             Assert.DoesNotThrow(() =>
+             {
+                 director.RefreshForScene("MainMenu");
+                 LocalDemoAudio.NotifyUserInteraction();
+                 director.RefreshForScene("Gameplay");
+                 director.SetRunning(true);
+                 director.SetRunning(false);
+             });
+-            Assert.That(director.CurrentMusicClip, Is.Null);
+-            Assert.That(director.IsMusicPlaying, Is.False);
+-            Assert.That(director.IsRunning, Is.False);
++            yield return new WaitForSecondsRealtime(.05f);
++            var sources = director.GetComponents<AudioSource>();
++            for (int i = 0; i < sources.Length; i++)
++            {
++                var source = sources[i];
++                Assert.That(source.clip, Is.Null);
++                Assert.That(source.isPlaying, Is.False, $"source={i}");
++            }
+         }
+ 
+-        [Test]
+-        public void InteractionUnlocksSceneMusicWithLoopAndApprovedVolumes()
++        [UnityTest]
++        public IEnumerator InteractionUnlocksSceneMusicWithLoopAndApprovedVolumes()
+         {
+-            var lobby = Clip("Lobby");
+-            var gameplay = Clip("Gameplay");
++            var lobby = Clip("Lobby", 44100 * 10);
++            var gameplay = Clip("Gameplay", 44100 * 10);
+             SetResolver(name => name == "LobbyMusic_BG" ? lobby : name == "GameplayMusic_BG" ? gameplay : null);
+             var director = LocalDemoAudio.EnsureExists();
++            var music = director.GetComponents<AudioSource>()[0];
+ 
+             director.RefreshForScene("MainMenu");
+-            Assert.That(director.IsMusicPlaying, Is.False);
++            Assert.That(music.clip, Is.SameAs(lobby));
++            Assert.That(music.isPlaying, Is.False);
+ 
+             LocalDemoAudio.NotifyUserInteraction();
++            yield return new WaitForSecondsRealtime(.1f);
+ 
+-            Assert.That(director.CurrentMusicClip, Is.SameAs(lobby));
+-            Assert.That(director.IsMusicPlaying, Is.True);
+-            Assert.That(director.MusicLoops, Is.True);
+-            Assert.That(director.MusicVolume, Is.EqualTo(.20f).Within(.001f));
++            Assert.That(music.isPlaying, Is.True);
++            Assert.That(music.timeSamples, Is.GreaterThan(0));
++            Assert.That(music.loop, Is.True);
++            Assert.That(music.volume, Is.EqualTo(.20f).Within(.001f));
+ 
+             director.RefreshForScene("Gameplay");
+-            Assert.That(director.CurrentMusicClip, Is.SameAs(gameplay));
+-            Assert.That(director.IsMusicPlaying, Is.True);
+-            Assert.That(director.MusicVolume, Is.EqualTo(.22f).Within(.001f));
++            yield return new WaitForSecondsRealtime(.1f);
++            Assert.That(music.clip, Is.SameAs(gameplay));
++            Assert.That(music.isPlaying, Is.True);
++            Assert.That(music.timeSamples, Is.GreaterThan(0));
++            Assert.That(music.volume, Is.EqualTo(.22f).Within(.001f));
++
++            director.RefreshForScene("Other");
++            Assert.That(music.isPlaying, Is.False);
+         }
+ 
+         [Test]
+         public void EnsureExistsKeepsOneDirectorAndDoesNotDuplicateSources()
+         {
+             var first = LocalDemoAudio.EnsureExists();
+             var second = LocalDemoAudio.EnsureExists();
+ 
+             Assert.That(second, Is.SameAs(first));
+             Assert.That(Object.FindObjectsByType<LocalDemoAudio>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
+             Assert.That(first.GetComponents<AudioSource>(), Has.Length.EqualTo(2));
+         }
+ 
+         [Test]
+-        public void RunningLoopStartsOnceAndStopsForIdleTerminalResetAndDisable()
++        public void FreshDirectorRemainsSilentWithoutInput()
++        {
++            var lobby = Clip("Lobby", 44100 * 10);
++            SetResolver(name => name == "LobbyMusic_BG" ? lobby : null);
++            var director = LocalDemoAudio.EnsureExists();
++            director.RefreshForScene("MainMenu");
++            director.SendMessage("Update");
++
++            var music = director.GetComponents<AudioSource>()[0];
++            Assert.That(music.clip, Is.SameAs(lobby));
++            Assert.That(music.isPlaying, Is.False);
++        }
++
++        [UnityTest]
++        public IEnumerator KeyboardAndMousePressUnlockMusicThroughUpdate()
++        {
++            var lobby = Clip("Lobby", 44100 * 10);
++            SetResolver(name => name == "LobbyMusic_BG" ? lobby : null);
++            var keyboard = InputSystem.AddDevice<Keyboard>();
++            var mouse = InputSystem.AddDevice<Mouse>();
++            var director = LocalDemoAudio.EnsureExists();
++            director.RefreshForScene("MainMenu");
++            var music = director.GetComponents<AudioSource>()[0];
++
++            director.SendMessage("Update");
++            Assert.That(music.isPlaying, Is.False);
++            Press(keyboard.spaceKey);
++            director.SendMessage("Update");
++            yield return new WaitForSecondsRealtime(.05f);
++            Assert.That(music.isPlaying, Is.True);
++
++            DestroyDirectors();
++            SetUnlocked(false);
++            director = LocalDemoAudio.EnsureExists();
++            director.RefreshForScene("MainMenu");
++            music = director.GetComponents<AudioSource>()[0];
++            Assert.That(music.isPlaying, Is.False);
++            Press(mouse.leftButton);
++            director.SendMessage("Update");
++            yield return new WaitForSecondsRealtime(.05f);
++            Assert.That(music.isPlaying, Is.True);
++        }
++
++        [UnityTest]
++        public IEnumerator ActiveSceneChangesReuseDirectorAndSwitchMusic()
+         {
+-            var running = Clip("Running");
++            var lobby = Clip("Lobby", 44100 * 10);
++            var gameplay = Clip("Gameplay", 44100 * 10);
++            SetResolver(name => name == "LobbyMusic_BG" ? lobby : name == "GameplayMusic_BG" ? gameplay : null);
++            var director = LocalDemoAudio.EnsureExists();
++            var sources = director.GetComponents<AudioSource>();
++            LocalDemoAudio.NotifyUserInteraction();
++
++            var menu = SceneManager.CreateScene("MainMenu");
++            scenes.Add(menu);
++            SceneManager.SetActiveScene(menu);
++            yield return new WaitForSecondsRealtime(.05f);
++            Assert.That(LocalDemoAudio.EnsureExists(), Is.SameAs(director));
++            Assert.That(director.GetComponents<AudioSource>(), Is.EquivalentTo(sources));
++            Assert.That(sources[0].clip, Is.SameAs(lobby));
++            Assert.That(sources[0].isPlaying, Is.True);
++
++            var play = SceneManager.CreateScene("Gameplay");
++            scenes.Add(play);
++            SceneManager.SetActiveScene(play);
++            yield return new WaitForSecondsRealtime(.05f);
++            Assert.That(LocalDemoAudio.EnsureExists(), Is.SameAs(director));
++            Assert.That(director.GetComponents<AudioSource>(), Is.EquivalentTo(sources));
++            Assert.That(Object.FindObjectsByType<LocalDemoAudio>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
++            Assert.That(sources[0].clip, Is.SameAs(gameplay));
++            Assert.That(sources[0].isPlaying, Is.True);
++        }
++
++        [UnityTest]
++        public IEnumerator RunningLoopStartsOnceAndStopsForIdleTerminalResetAndDisable()
++        {
++            var running = Clip("Running", 44100 * 10);
+             SetResolver(name => name == "Running" ? running : null);
+             var director = LocalDemoAudio.EnsureExists();
+             director.RefreshForScene("Gameplay");
++            var source = director.GetComponents<AudioSource>()[1];
+             var mascot = new GameObject("Mascot").AddComponent<MascotPresentation>();
+             try
+             {
+                 mascot.SetMovement(1);
+-                Assert.That(director.IsRunning, Is.False);
++                Assert.That(source.isPlaying, Is.False);
+ 
+                 LocalDemoAudio.NotifyUserInteraction();
+-                Assert.That(director.IsRunning, Is.True);
++                yield return new WaitForSecondsRealtime(.12f);
++                Assert.That(source.isPlaying, Is.True);
++                int before = source.timeSamples;
++                Assert.That(before, Is.GreaterThan(1000));
+ 
+                 mascot.SetMovement(1);
+-                Assert.That(director.RunningClip, Is.SameAs(running));
+-                Assert.That(director.IsRunning, Is.True);
+-                Assert.That(director.RunningLoops, Is.True);
+-                Assert.That(director.RunningVolume, Is.EqualTo(.10f).Within(.001f));
++                yield return new WaitForSecondsRealtime(.05f);
++                Assert.That(source.clip, Is.SameAs(running));
++                Assert.That(source.isPlaying, Is.True);
++                Assert.That(source.timeSamples, Is.GreaterThan(before));
++                Assert.That(source.loop, Is.True);
++                Assert.That(source.volume, Is.EqualTo(.10f).Within(.001f));
+                 Assert.That(director.GetComponents<AudioSource>(), Has.Length.EqualTo(2));
+ 
+                 mascot.SetMovement(0);
+-                Assert.That(director.IsRunning, Is.False);
++                Assert.That(source.isPlaying, Is.False);
++
++                mascot.SetMovement(-1);
++                Assert.That(source.isPlaying, Is.True);
++                mascot.SetMovement(0);
++                Assert.That(source.isPlaying, Is.False);
+ 
+                 mascot.SetMovement(-1);
+                 mascot.PlayTerminal(EndReason.HpDepleted);
+-                Assert.That(director.IsRunning, Is.False);
++                Assert.That(source.isPlaying, Is.False);
+ 
+                 mascot.ResetPresentation();
+-                Assert.That(director.IsRunning, Is.False);
++                Assert.That(source.isPlaying, Is.False);
+ 
+                 mascot.SetMovement(1);
+                 mascot.enabled = false;
+-                Assert.That(director.IsRunning, Is.False);
++                Assert.That(source.isPlaying, Is.False);
+             }
+             finally { Object.DestroyImmediate(mascot.gameObject); }
+         }
+ 
+         [Test]
+         public void MascotLoadsOptionalTerminalClipsByConvention()
+         {
+             var triumph = Clip("Triumph");
+             var death = Clip("Death");
+             SetResolver(name => name == "Triumph" ? triumph : name == "Death" ? death : null);
+ 
+             var mascot = new GameObject("Mascot").AddComponent<MascotPresentation>();
+             try
+             {
+                 Assert.That(Field<AudioClip>(mascot, "triumphClip"), Is.SameAs(triumph));
+                 Assert.That(Field<AudioClip>(mascot, "deathClip"), Is.SameAs(death));
+             }
+             finally { Object.DestroyImmediate(mascot.gameObject); }
+         }
+ 
+-        private AudioClip Clip(string name)
++        [UnityTest]
++        public IEnumerator ResetStopsLongTerminalOneShotBeforeNextRound()
+         {
+-            var clip = AudioClip.Create(name, 441, 1, 44100, false);
++            var death = Clip("Death", 44100 * 6);
++            var triumph = Clip("Triumph", 44100 * 6);
++            SetResolver(name => name == "Death" ? death : name == "Triumph" ? triumph : null);
++            LocalDemoAudio.NotifyUserInteraction();
++            var root = new GameObject("Mascot");
++            var source = root.AddComponent<AudioSource>();
++            var mascot = root.AddComponent<MascotPresentation>();
++            SetField(mascot, "audioSource", source);
++            try
++            {
++                mascot.PlayTerminal(EndReason.HpDepleted);
++                yield return new WaitForSecondsRealtime(.1f);
++                Assert.That(source.isPlaying, Is.True);
++
++                mascot.ResetPresentation();
++                Assert.That(source.isPlaying, Is.False);
++
++                mascot.PlayTerminal(EndReason.Triumph);
++                yield return new WaitForSecondsRealtime(.1f);
++                Assert.That(source.isPlaying, Is.True);
++                mascot.ResetPresentation();
++                Assert.That(source.isPlaying, Is.False);
++            }
++            finally { Object.DestroyImmediate(root); }
++        }
++
++        private AudioClip Clip(string name, int samples = 441)
++        {
++            var clip = AudioClip.Create(name, samples, 1, 44100, false);
+             clips.Add(clip);
+             return clip;
+         }
+ 
++        private static void SetField(object target, string name, object value)
++        {
++            var field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
++            Assert.That(field, Is.Not.Null);
++            field.SetValue(target, value);
++        }
++
+         private static T Field<T>(object target, string name)
+         {
+             var field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
+             Assert.That(field, Is.Not.Null);
+             return (T)field.GetValue(target);
+         }
+ 
+         private static void SetResolver(Func<string, AudioClip> resolver)
+         {
+             var type = typeof(MascotPresentation).Assembly.GetType("CPS.KitchenCatch.LocalDemoAudio");

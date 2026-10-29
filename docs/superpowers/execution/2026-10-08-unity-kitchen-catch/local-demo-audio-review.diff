@@ -1,0 +1,502 @@
+# Review package: 922c2ef42a606d9956e4d0ed463da4cac55d6e9b..550e54a3b9107185d01757d67e5379ae84e8fa38
+
+## Commits
+550e54a feat: add optional local demo audio hooks
+
+## Files changed
+ Assets/CPS/Presentation/LocalDemoAudio.cs          | 144 +++++++++++++++++
+ Assets/CPS/Presentation/LocalDemoAudio.cs.meta     |   2 +
+ Assets/CPS/Presentation/MascotPresentation.cs      |  18 ++-
+ Assets/CPS/Resources.meta                          |   8 +
+ Assets/CPS/Tests/PlayMode/LocalDemoAudioTests.cs   | 177 +++++++++++++++++++++
+ .../CPS/Tests/PlayMode/LocalDemoAudioTests.cs.meta |   2 +
+ 6 files changed, 343 insertions(+), 8 deletions(-)
+
+## Diff
+diff --git a/Assets/CPS/Presentation/LocalDemoAudio.cs b/Assets/CPS/Presentation/LocalDemoAudio.cs
+new file mode 100644
+index 0000000..bfc4de2
+--- /dev/null
++++ b/Assets/CPS/Presentation/LocalDemoAudio.cs
+@@ -0,0 +1,144 @@
++using System;
++using UnityEngine;
++using UnityEngine.SceneManagement;
++
++namespace CPS.KitchenCatch
++{
++    public sealed class LocalDemoAudio : MonoBehaviour
++    {
++        private static LocalDemoAudio instance;
++        private static Func<string, AudioClip> clipResolver = name => Resources.Load<AudioClip>("LocalDemoAudio/" + name);
++        private static bool audioUnlocked;
++        private AudioSource musicSource;
++        private AudioSource runningSource;
++        private string currentScene;
++        private bool wantsRunning;
++
++        public AudioClip CurrentMusicClip => musicSource != null ? musicSource.clip : null;
++        public AudioClip RunningClip => runningSource != null ? runningSource.clip : null;
++        public bool IsMusicPlaying { get; private set; }
++        public bool IsRunning { get; private set; }
++        public bool MusicLoops => musicSource != null && musicSource.loop;
++        public bool RunningLoops => runningSource != null && runningSource.loop;
++        public float MusicVolume => musicSource != null ? musicSource.volume : 0;
++        public float RunningVolume => runningSource != null ? runningSource.volume : 0;
++        internal static bool AudioUnlocked => audioUnlocked;
++
++        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
++        private static void Bootstrap() => EnsureExists();
++
++        public static LocalDemoAudio EnsureExists()
++        {
++            if (instance != null) return instance;
++            instance = FindFirstObjectByType<LocalDemoAudio>();
++            if (instance != null) return instance;
++            var root = new GameObject(nameof(LocalDemoAudio));
++            instance = root.AddComponent<LocalDemoAudio>();
++            return instance;
++        }
++
++        internal static AudioClip LoadClip(string name) => clipResolver?.Invoke(name);
++
++        public static void NotifyUserInteraction()
++        {
++            audioUnlocked = true;
++            var director = EnsureExists();
++            director.ApplyMusic();
++            director.ApplyRunning();
++        }
++
++        private void Awake()
++        {
++            if (instance != null && instance != this)
++            {
++                Destroy(gameObject);
++                return;
++            }
++            instance = this;
++            DontDestroyOnLoad(gameObject);
++            musicSource = gameObject.AddComponent<AudioSource>();
++            runningSource = gameObject.AddComponent<AudioSource>();
++            musicSource.loop = true;
++            runningSource.loop = true;
++            runningSource.volume = .10f;
++            SceneManager.activeSceneChanged += SceneChanged;
++            RefreshForScene(SceneManager.GetActiveScene().name);
++        }
++
++        private void Update()
++        {
++            if (audioUnlocked) return;
++            var keyboard = UnityEngine.InputSystem.Keyboard.current;
++            var mouse = UnityEngine.InputSystem.Mouse.current;
++            if (keyboard != null && keyboard.anyKey.wasPressedThisFrame ||
++                mouse != null && mouse.leftButton.wasPressedThisFrame) NotifyUserInteraction();
++        }
++
++        private void SceneChanged(Scene previous, Scene next) => RefreshForScene(next.name);
++
++        public void RefreshForScene(string sceneName)
++        {
++            currentScene = sceneName;
++            SetRunning(false);
++            ApplyMusic();
++        }
++
++        private void ApplyMusic()
++        {
++            if (musicSource == null) return;
++            string clipName = currentScene == "MainMenu" ? "LobbyMusic_BG" :
++                currentScene == "Gameplay" ? "GameplayMusic_BG" : null;
++            float volume = currentScene == "MainMenu" ? .20f : .22f;
++            var clip = clipName == null ? null : LoadClip(clipName);
++            if (musicSource.clip != clip)
++            {
++                musicSource.Stop();
++                musicSource.clip = clip;
++            }
++            musicSource.volume = volume;
++            IsMusicPlaying = audioUnlocked && clip != null;
++            if (IsMusicPlaying && !musicSource.isPlaying) musicSource.Play();
++            else if (!IsMusicPlaying) musicSource.Stop();
++        }
++
++        public void SetRunning(bool running)
++        {
++            wantsRunning = running;
++            if (runningSource == null) return;
++            if (runningSource.clip == null) runningSource.clip = LoadClip("Running");
++            ApplyRunning();
++        }
++
++        public static void SetMascotRunning(bool running)
++        {
++            if (running) EnsureExists().SetRunning(true);
++            else instance?.SetRunning(false);
++        }
++
++        private void ApplyRunning()
++        {
++            bool shouldPlay = audioUnlocked && wantsRunning && currentScene == "Gameplay" && runningSource.clip != null;
++            if (shouldPlay && !IsRunning) runningSource.Play();
++            else if (!shouldPlay && IsRunning) runningSource.Stop();
++            IsRunning = shouldPlay;
++        }
++
++        private void OnApplicationPause(bool paused)
++        {
++            if (paused) SetRunning(false);
++        }
++
++        private void OnDisable()
++        {
++            if (runningSource != null) runningSource.Stop();
++            IsRunning = false;
++            wantsRunning = false;
++        }
++
++        private void OnDestroy()
++        {
++            SceneManager.activeSceneChanged -= SceneChanged;
++            if (instance == this) instance = null;
++        }
++    }
++}
+diff --git a/Assets/CPS/Presentation/LocalDemoAudio.cs.meta b/Assets/CPS/Presentation/LocalDemoAudio.cs.meta
+new file mode 100644
+index 0000000..55d9327
+--- /dev/null
++++ b/Assets/CPS/Presentation/LocalDemoAudio.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: fdd771a425ba47a18e3e2db6e8e32c12
+diff --git a/Assets/CPS/Presentation/MascotPresentation.cs b/Assets/CPS/Presentation/MascotPresentation.cs
+index 9cac790..0ec853b 100644
+--- a/Assets/CPS/Presentation/MascotPresentation.cs
++++ b/Assets/CPS/Presentation/MascotPresentation.cs
+@@ -23,47 +23,44 @@ public sealed class MascotPresentation : MonoBehaviour
+         private float reactionSeconds;
+         private int movement;
+         private bool terminal;
+         private bool dying;
+         private bool burstStarted;
+         private bool dissolveStarted;
+         private Vector3 originalScale;
+         private Quaternion originalRotation;
+         private Vector3 originalPosition;
+         private string clipState;
+-        private static bool audioUnlocked;
+-
+-        public static void NotifyUserInteraction() => audioUnlocked = true;
++        public static void NotifyUserInteraction() => LocalDemoAudio.NotifyUserInteraction();
+ 
+         private void Awake()
+         {
+             originalScale = transform.localScale;
+             originalRotation = transform.localRotation;
+             originalPosition = transform.localPosition;
++            if (triumphClip == null) triumphClip = LocalDemoAudio.LoadClip("Triumph");
++            if (deathClip == null) deathClip = LocalDemoAudio.LoadClip("Death");
+         }
+ 
+         private void Update()
+         {
+-            if (!audioUnlocked && UnityEngine.InputSystem.Keyboard.current != null &&
+-                UnityEngine.InputSystem.Keyboard.current.anyKey.wasPressedThisFrame) audioUnlocked = true;
+-            if (!audioUnlocked && UnityEngine.InputSystem.Mouse.current != null &&
+-                UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame) audioUnlocked = true;
+             StepPresentation(Time.unscaledDeltaTime);
+         }
+ 
+         public void SetMovement(int direction)
+         {
+             if (terminal) return;
+             movement = direction < 0 ? -1 : direction > 0 ? 1 : 0;
+             if (body != null) body.flipX = movement < 0;
+             if (hat != null) hat.flipX = false;
+             if (reactionSeconds <= 0) PlayAnimation(movement == 0 ? "Idle" : "Run");
++            LocalDemoAudio.SetMascotRunning(movement != 0);
+         }
+ 
+         public void PlayEat() => React("Eat", eatClip);
+         public void PlayHurt() => React("Hurt", hurtClip);
+ 
+         private void React(string state, AudioClip clip)
+         {
+             if (terminal) return;
+             reactionSeconds = .26f;
+             PlayAnimation(state);
+@@ -72,20 +69,21 @@ private void React(string state, AudioClip clip)
+ 
+         public void PlayTerminal(EndReason reason)
+         {
+             if (terminal) return;
+             terminal = true;
+             dying = reason == EndReason.HpDepleted;
+             terminalSeconds = 0;
+             burstStarted = false;
+             dissolveStarted = false;
+             reactionSeconds = 0;
++            LocalDemoAudio.SetMascotRunning(false);
+             PlayAnimation(dying ? "Hurt" : "Triumph");
+             PlaySound(dying ? deathClip : triumphClip);
+         }
+ 
+         public void StepPresentation(float seconds)
+         {
+             if (!float.IsFinite(seconds) || seconds <= 0) return;
+             if (!terminal)
+             {
+                 if (reactionSeconds > 0)
+@@ -165,40 +163,44 @@ private void SpawnBurst()
+             }
+         }
+ 
+         public void ResetPresentation()
+         {
+             terminal = false;
+             dying = false;
+             movement = 0;
+             terminalSeconds = reactionSeconds = 0;
+             burstStarted = dissolveStarted = false;
++            LocalDemoAudio.SetMascotRunning(false);
+             foreach (var item in bursts) burstPool.Release(item);
+             bursts.Clear();
+             if (dissolve != null) dissolve.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+             transform.localPosition = originalPosition;
+             transform.localRotation = originalRotation;
+             transform.localScale = originalScale;
+             if (body != null) { body.color = Color.white; body.enabled = true; body.flipX = false; }
+             if (hat != null) { hat.color = Color.white; hat.enabled = true; hat.flipX = false; }
+             PlayAnimation("Idle");
+         }
+ 
+         private void PlayAnimation(string state)
+         {
+             if (clipState == state) return;
+             clipState = state;
+             if (animator != null) animator.Play(state, 0, 0);
+         }
+ 
+         private void PlaySound(AudioClip clip)
+         {
+-            if (audioUnlocked && audioSource != null && clip != null) audioSource.PlayOneShot(clip);
++            if (LocalDemoAudio.AudioUnlocked && audioSource != null && clip != null) audioSource.PlayOneShot(clip);
+         }
+ 
++        private void OnDisable() => LocalDemoAudio.SetMascotRunning(false);
++
+         private void OnDestroy()
+         {
++            LocalDemoAudio.SetMascotRunning(false);
+             bursts.Clear();
+             burstPool?.Clear();
+         }
+     }
+ }
+diff --git a/Assets/CPS/Resources.meta b/Assets/CPS/Resources.meta
+new file mode 100644
+index 0000000..9dd2fe0
+--- /dev/null
++++ b/Assets/CPS/Resources.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: a4d56a0202b4de74a9540fcb44c1b77a
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Tests/PlayMode/LocalDemoAudioTests.cs b/Assets/CPS/Tests/PlayMode/LocalDemoAudioTests.cs
+new file mode 100644
+index 0000000..f63bfd7
+--- /dev/null
++++ b/Assets/CPS/Tests/PlayMode/LocalDemoAudioTests.cs
+@@ -0,0 +1,177 @@
++using System;
++using System.Collections.Generic;
++using System.Reflection;
++using NUnit.Framework;
++using UnityEngine;
++using Object = UnityEngine.Object;
++
++namespace CPS.KitchenCatch.Tests
++{
++    public sealed class LocalDemoAudioTests
++    {
++        private readonly List<AudioClip> clips = new List<AudioClip>();
++
++        [SetUp]
++        public void SetUp()
++        {
++            DestroyDirectors();
++            SetResolver(name => null);
++            SetUnlocked(false);
++        }
++
++        [TearDown]
++        public void TearDown()
++        {
++            DestroyDirectors();
++            SetResolver(null);
++            foreach (var clip in clips) Object.DestroyImmediate(clip);
++            clips.Clear();
++        }
++
++        [Test]
++        public void MissingLocalAssetsRemainSilentAcrossSupportedScenes()
++        {
++            var director = LocalDemoAudio.EnsureExists();
++
++            Assert.DoesNotThrow(() =>
++            {
++                director.RefreshForScene("MainMenu");
++                LocalDemoAudio.NotifyUserInteraction();
++                director.RefreshForScene("Gameplay");
++                director.SetRunning(true);
++                director.SetRunning(false);
++            });
++            Assert.That(director.CurrentMusicClip, Is.Null);
++            Assert.That(director.IsMusicPlaying, Is.False);
++            Assert.That(director.IsRunning, Is.False);
++        }
++
++        [Test]
++        public void InteractionUnlocksSceneMusicWithLoopAndApprovedVolumes()
++        {
++            var lobby = Clip("Lobby");
++            var gameplay = Clip("Gameplay");
++            SetResolver(name => name == "LobbyMusic_BG" ? lobby : name == "GameplayMusic_BG" ? gameplay : null);
++            var director = LocalDemoAudio.EnsureExists();
++
++            director.RefreshForScene("MainMenu");
++            Assert.That(director.IsMusicPlaying, Is.False);
++
++            LocalDemoAudio.NotifyUserInteraction();
++
++            Assert.That(director.CurrentMusicClip, Is.SameAs(lobby));
++            Assert.That(director.IsMusicPlaying, Is.True);
++            Assert.That(director.MusicLoops, Is.True);
++            Assert.That(director.MusicVolume, Is.EqualTo(.20f).Within(.001f));
++
++            director.RefreshForScene("Gameplay");
++            Assert.That(director.CurrentMusicClip, Is.SameAs(gameplay));
++            Assert.That(director.IsMusicPlaying, Is.True);
++            Assert.That(director.MusicVolume, Is.EqualTo(.22f).Within(.001f));
++        }
++
++        [Test]
++        public void EnsureExistsKeepsOneDirectorAndDoesNotDuplicateSources()
++        {
++            var first = LocalDemoAudio.EnsureExists();
++            var second = LocalDemoAudio.EnsureExists();
++
++            Assert.That(second, Is.SameAs(first));
++            Assert.That(Object.FindObjectsByType<LocalDemoAudio>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
++            Assert.That(first.GetComponents<AudioSource>(), Has.Length.EqualTo(2));
++        }
++
++        [Test]
++        public void RunningLoopStartsOnceAndStopsForIdleTerminalResetAndDisable()
++        {
++            var running = Clip("Running");
++            SetResolver(name => name == "Running" ? running : null);
++            var director = LocalDemoAudio.EnsureExists();
++            director.RefreshForScene("Gameplay");
++            var mascot = new GameObject("Mascot").AddComponent<MascotPresentation>();
++            try
++            {
++                mascot.SetMovement(1);
++                Assert.That(director.IsRunning, Is.False);
++
++                LocalDemoAudio.NotifyUserInteraction();
++                Assert.That(director.IsRunning, Is.True);
++
++                mascot.SetMovement(1);
++                Assert.That(director.RunningClip, Is.SameAs(running));
++                Assert.That(director.IsRunning, Is.True);
++                Assert.That(director.RunningLoops, Is.True);
++                Assert.That(director.RunningVolume, Is.EqualTo(.10f).Within(.001f));
++                Assert.That(director.GetComponents<AudioSource>(), Has.Length.EqualTo(2));
++
++                mascot.SetMovement(0);
++                Assert.That(director.IsRunning, Is.False);
++
++                mascot.SetMovement(-1);
++                mascot.PlayTerminal(EndReason.HpDepleted);
++                Assert.That(director.IsRunning, Is.False);
++
++                mascot.ResetPresentation();
++                Assert.That(director.IsRunning, Is.False);
++
++                mascot.SetMovement(1);
++                mascot.enabled = false;
++                Assert.That(director.IsRunning, Is.False);
++            }
++            finally { Object.DestroyImmediate(mascot.gameObject); }
++        }
++
++        [Test]
++        public void MascotLoadsOptionalTerminalClipsByConvention()
++        {
++            var triumph = Clip("Triumph");
++            var death = Clip("Death");
++            SetResolver(name => name == "Triumph" ? triumph : name == "Death" ? death : null);
++
++            var mascot = new GameObject("Mascot").AddComponent<MascotPresentation>();
++            try
++            {
++                Assert.That(Field<AudioClip>(mascot, "triumphClip"), Is.SameAs(triumph));
++                Assert.That(Field<AudioClip>(mascot, "deathClip"), Is.SameAs(death));
++            }
++            finally { Object.DestroyImmediate(mascot.gameObject); }
++        }
++
++        private AudioClip Clip(string name)
++        {
++            var clip = AudioClip.Create(name, 441, 1, 44100, false);
++            clips.Add(clip);
++            return clip;
++        }
++
++        private static T Field<T>(object target, string name)
++        {
++            var field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
++            Assert.That(field, Is.Not.Null);
++            return (T)field.GetValue(target);
++        }
++
++        private static void SetResolver(Func<string, AudioClip> resolver)
++        {
++            var type = typeof(MascotPresentation).Assembly.GetType("CPS.KitchenCatch.LocalDemoAudio");
++            if (type == null) return;
++            var field = type.GetField("clipResolver", BindingFlags.Static | BindingFlags.NonPublic);
++            field?.SetValue(null, resolver ?? new Func<string, AudioClip>(name => Resources.Load<AudioClip>("LocalDemoAudio/" + name)));
++        }
++
++        private static void SetUnlocked(bool value)
++        {
++            var type = typeof(MascotPresentation).Assembly.GetType("CPS.KitchenCatch.LocalDemoAudio");
++            var field = type?.GetField("audioUnlocked", BindingFlags.Static | BindingFlags.NonPublic);
++            field?.SetValue(null, value);
++        }
++
++        private static void DestroyDirectors()
++        {
++            var type = typeof(MascotPresentation).Assembly.GetType("CPS.KitchenCatch.LocalDemoAudio");
++            if (type == null) return;
++            foreach (var item in Object.FindObjectsByType(type, FindObjectsSortMode.None))
++                Object.DestroyImmediate(((Component)item).gameObject);
++        }
++    }
++}
+diff --git a/Assets/CPS/Tests/PlayMode/LocalDemoAudioTests.cs.meta b/Assets/CPS/Tests/PlayMode/LocalDemoAudioTests.cs.meta
+new file mode 100644
+index 0000000..8565ca3
+--- /dev/null
++++ b/Assets/CPS/Tests/PlayMode/LocalDemoAudioTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: f5ac647bc6984cf9af9dafde45747c49

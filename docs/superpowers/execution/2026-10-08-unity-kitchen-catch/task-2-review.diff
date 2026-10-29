@@ -1,0 +1,733 @@
+# Review package: 5965e66d0d0ed8e36e6af9b7126e2341d9f4544b..43faf730df1887fc711c78e06f0e474e2bf0feb0
+
+## Commits
+43faf73 feat: add keyboard control and input statistics
+
+## Files changed
+ Assets/CPS/Input.meta                              |   8 +
+ Assets/CPS/Input/ForceStatsCollector.cs            | 103 ++++++++++++
+ Assets/CPS/Input/ForceStatsCollector.cs.meta       |   2 +
+ Assets/CPS/Input/IPlayerInput.cs                   |   7 +
+ Assets/CPS/Input/IPlayerInput.cs.meta              |   2 +
+ Assets/CPS/Input/InputSnapshot.cs                  |  32 ++++
+ Assets/CPS/Input/InputSnapshot.cs.meta             |   2 +
+ Assets/CPS/Input/KeyboardInput.cs                  |  25 +++
+ Assets/CPS/Input/KeyboardInput.cs.meta             |   2 +
+ Assets/CPS/Input/PlayerController.cs               |  42 +++++
+ Assets/CPS/Input/PlayerController.cs.meta          |   2 +
+ Assets/CPS/Tests/EditMode/InputStatsTests.cs       | 174 +++++++++++++++++++++
+ Assets/CPS/Tests/EditMode/InputStatsTests.cs.meta  |   2 +
+ Assets/CPS/Tests/PlayMode.meta                     |   8 +
+ Assets/CPS/Tests/PlayMode/CPS.PlayModeTests.asmdef |   6 +
+ .../Tests/PlayMode/CPS.PlayModeTests.asmdef.meta   |   7 +
+ Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs   | 165 +++++++++++++++++++
+ .../CPS/Tests/PlayMode/KeyboardPlayerTests.cs.meta |   2 +
+ 18 files changed, 591 insertions(+)
+
+## Diff
+diff --git a/Assets/CPS/Input.meta b/Assets/CPS/Input.meta
+new file mode 100644
+index 0000000..dc8e6b5
+--- /dev/null
++++ b/Assets/CPS/Input.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: a064a69dc23c21c4883c0ebf867c85e0
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Input/ForceStatsCollector.cs b/Assets/CPS/Input/ForceStatsCollector.cs
+new file mode 100644
+index 0000000..805c92b
+--- /dev/null
++++ b/Assets/CPS/Input/ForceStatsCollector.cs
+@@ -0,0 +1,103 @@
++using System;
++
++namespace CPS.KitchenCatch
++{
++    public sealed class ForceStatsCollector
++    {
++        private readonly HandTotals left = new HandTotals();
++        private readonly HandTotals right = new HandTotals();
++        private double bothPressedDuration;
++
++        public void Accumulate(InputSnapshot input, float dt)
++        {
++            if (!IsFinite(dt) || dt <= 0)
++                return;
++
++            left.Accumulate(input.Left, dt);
++            right.Accumulate(input.Right, dt);
++            if (input.Left.Valid && input.Left.Pressed && input.Right.Valid && input.Right.Pressed)
++                bothPressedDuration += dt;
++        }
++
++        public void Reset()
++        {
++            left.Reset();
++            right.Reset();
++            bothPressedDuration = 0;
++        }
++
++        public InputStatistics Snapshot()
++        {
++            double pressedTotal = left.PressedDuration + right.PressedDuration;
++            return new InputStatistics
++            {
++                Left = left.Snapshot(),
++                Right = right.Snapshot(),
++                BothPressedDurationSeconds = ToFloat(bothPressedDuration),
++                HasBalance = pressedTotal > 0,
++                LeftBalance01 = pressedTotal > 0 ? (float)(left.PressedDuration / pressedTotal) : 0
++            };
++        }
++
++        private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
++        private static float ToFloat(double value) => (float)Math.Min(value, float.MaxValue);
++
++        private sealed class HandTotals
++        {
++            public double PressedDuration;
++            private double strengthDuration;
++            private double strengthIntegral;
++            private float maxStrength;
++            private double forceDuration;
++            private double forceIntegral;
++            private float maxForce;
++
++            public void Accumulate(HandInput input, float dt)
++            {
++                if (!input.Valid)
++                    return;
++
++                if (input.Pressed)
++                    PressedDuration += dt;
++                if (IsFinite(input.Strength01))
++                {
++                    float strength = Math.Clamp(input.Strength01, 0, 1);
++                    strengthDuration += dt;
++                    strengthIntegral += (double)strength * dt;
++                    maxStrength = Math.Max(maxStrength, strength);
++                }
++                if (input.ForceN.HasValue && IsFinite(input.ForceN.Value) && input.ForceN.Value >= 0)
++                {
++                    float force = input.ForceN.Value;
++                    forceDuration += dt;
++                    forceIntegral += (double)force * dt;
++                    maxForce = Math.Max(maxForce, force);
++                }
++            }
++
++            public HandStatistics Snapshot() => new HandStatistics
++            {
++                HasStrength = strengthDuration > 0,
++                HasForce = forceDuration > 0,
++                MaxStrength01 = maxStrength,
++                MeanStrength01 = strengthDuration > 0 ? ToFloat(strengthIntegral / strengthDuration) : 0,
++                MaxForceN = maxForce,
++                MeanForceN = forceDuration > 0 ? ToFloat(forceIntegral / forceDuration) : 0,
++                ValidDurationSeconds = ToFloat(strengthDuration),
++                ForceValidDurationSeconds = ToFloat(forceDuration),
++                PressedDurationSeconds = ToFloat(PressedDuration)
++            };
++
++            public void Reset()
++            {
++                PressedDuration = 0;
++                strengthDuration = 0;
++                strengthIntegral = 0;
++                maxStrength = 0;
++                forceDuration = 0;
++                forceIntegral = 0;
++                maxForce = 0;
++            }
++        }
++    }
++}
+diff --git a/Assets/CPS/Input/ForceStatsCollector.cs.meta b/Assets/CPS/Input/ForceStatsCollector.cs.meta
+new file mode 100644
+index 0000000..2853571
+--- /dev/null
++++ b/Assets/CPS/Input/ForceStatsCollector.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: d4c0c3eb84958d544b735ff4b9880fe1
+\ No newline at end of file
+diff --git a/Assets/CPS/Input/IPlayerInput.cs b/Assets/CPS/Input/IPlayerInput.cs
+new file mode 100644
+index 0000000..3c0b041
+--- /dev/null
++++ b/Assets/CPS/Input/IPlayerInput.cs
+@@ -0,0 +1,7 @@
++namespace CPS.KitchenCatch
++{
++    public interface IPlayerInput
++    {
++        InputSnapshot Read();
++    }
++}
+diff --git a/Assets/CPS/Input/IPlayerInput.cs.meta b/Assets/CPS/Input/IPlayerInput.cs.meta
+new file mode 100644
+index 0000000..9263397
+--- /dev/null
++++ b/Assets/CPS/Input/IPlayerInput.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: bdafe7d7e612bc146ba9a0451a939027
+\ No newline at end of file
+diff --git a/Assets/CPS/Input/InputSnapshot.cs b/Assets/CPS/Input/InputSnapshot.cs
+new file mode 100644
+index 0000000..08801e9
+--- /dev/null
++++ b/Assets/CPS/Input/InputSnapshot.cs
+@@ -0,0 +1,32 @@
++namespace CPS.KitchenCatch
++{
++    public readonly struct HandInput
++    {
++        public bool Pressed { get; }
++        public float Strength01 { get; }
++        public bool Valid { get; }
++        public float? ForceN { get; }
++
++        public HandInput(bool pressed, float strength01, bool valid, float? forceN)
++        {
++            Pressed = pressed;
++            Strength01 = strength01;
++            Valid = valid;
++            ForceN = forceN;
++        }
++    }
++
++    public readonly struct InputSnapshot
++    {
++        public HandInput Left { get; }
++        public HandInput Right { get; }
++        public string Source { get; }
++
++        public InputSnapshot(HandInput left, HandInput right, string source)
++        {
++            Left = left;
++            Right = right;
++            Source = source;
++        }
++    }
++}
+diff --git a/Assets/CPS/Input/InputSnapshot.cs.meta b/Assets/CPS/Input/InputSnapshot.cs.meta
+new file mode 100644
+index 0000000..2a3e4ea
+--- /dev/null
++++ b/Assets/CPS/Input/InputSnapshot.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 0d4b78a4216a66740bb756feb22a9d46
+\ No newline at end of file
+diff --git a/Assets/CPS/Input/KeyboardInput.cs b/Assets/CPS/Input/KeyboardInput.cs
+new file mode 100644
+index 0000000..84784fe
+--- /dev/null
++++ b/Assets/CPS/Input/KeyboardInput.cs
+@@ -0,0 +1,25 @@
++using UnityEngine;
++using UnityEngine.InputSystem;
++
++namespace CPS.KitchenCatch
++{
++    public sealed class KeyboardInput : MonoBehaviour, IPlayerInput
++    {
++        private bool hasFocus = true;
++
++        public InputSnapshot Read()
++        {
++            var keyboard = Keyboard.current;
++            if (!hasFocus || keyboard == null)
++                return new InputSnapshot(default, default, "Keyboard");
++
++            bool left = keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed;
++            bool right = keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed;
++            return new InputSnapshot(
++                new HandInput(left, left ? 1 : 0, true, null),
++                new HandInput(right, right ? 1 : 0, true, null), "Keyboard");
++        }
++
++        private void OnApplicationFocus(bool focused) => hasFocus = focused;
++    }
++}
+diff --git a/Assets/CPS/Input/KeyboardInput.cs.meta b/Assets/CPS/Input/KeyboardInput.cs.meta
+new file mode 100644
+index 0000000..ee4933f
+--- /dev/null
++++ b/Assets/CPS/Input/KeyboardInput.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 026b8a1c03b7be04fbbedcbe5bb41900
+\ No newline at end of file
+diff --git a/Assets/CPS/Input/PlayerController.cs b/Assets/CPS/Input/PlayerController.cs
+new file mode 100644
+index 0000000..9345b47
+--- /dev/null
++++ b/Assets/CPS/Input/PlayerController.cs
+@@ -0,0 +1,42 @@
++using UnityEngine;
++
++namespace CPS.KitchenCatch
++{
++    public sealed class PlayerController : MonoBehaviour
++    {
++        private const float MoveSpeed = 7;
++        private const float FieldHalfWidth = 8;
++
++        [SerializeField, Min(0)] private float mascotHalfWidth = 0.5f;
++        [SerializeField] private Vector3 catchZoneOffset = new Vector3(0, 0.5f, 0);
++        [SerializeField] private Vector3 catchZoneHalfExtents = new Vector3(0.75f, 0.25f, 0.1f);
++
++        public int MovementDirection { get; private set; }
++        public Bounds CatchZone => new Bounds(transform.position + catchZoneOffset,
++            new Vector3(Mathf.Abs(catchZoneHalfExtents.x), Mathf.Abs(catchZoneHalfExtents.y),
++                Mathf.Abs(catchZoneHalfExtents.z)) * 2);
++
++        public void Step(InputSnapshot input, float dt)
++        {
++            MovementDirection = 0;
++            if (float.IsNaN(dt) || float.IsInfinity(dt) || dt <= 0)
++                return;
++
++            bool left = input.Left.Valid && input.Left.Pressed;
++            bool right = input.Right.Valid && input.Right.Pressed;
++            MovementDirection = (right ? 1 : 0) - (left ? 1 : 0);
++            float limit = FieldHalfWidth - Mathf.Clamp(mascotHalfWidth, 0, FieldHalfWidth);
++            var position = transform.position;
++            position.x = Mathf.Clamp(position.x + MovementDirection * MoveSpeed * dt, -limit, limit);
++            transform.position = position;
++        }
++
++        public void ResetPosition()
++        {
++            var position = transform.position;
++            position.x = 0;
++            transform.position = position;
++            MovementDirection = 0;
++        }
++    }
++}
+diff --git a/Assets/CPS/Input/PlayerController.cs.meta b/Assets/CPS/Input/PlayerController.cs.meta
+new file mode 100644
+index 0000000..58bffbb
+--- /dev/null
++++ b/Assets/CPS/Input/PlayerController.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 3d802bef0e28b874eaf2f8bf952ecea6
+\ No newline at end of file
+diff --git a/Assets/CPS/Tests/EditMode/InputStatsTests.cs b/Assets/CPS/Tests/EditMode/InputStatsTests.cs
+new file mode 100644
+index 0000000..32dee79
+--- /dev/null
++++ b/Assets/CPS/Tests/EditMode/InputStatsTests.cs
+@@ -0,0 +1,174 @@
++using NUnit.Framework;
++
++namespace CPS.KitchenCatch.Tests
++{
++    public sealed class InputStatsTests
++    {
++        [Test]
++        public void StrengthMeanIncludesReleaseAndUsesDuration()
++        {
++            var collector = new ForceStatsCollector();
++            collector.Accumulate(Sample(new HandInput(true, 1, true, null)), 1);
++            collector.Accumulate(Sample(new HandInput(false, 0, true, null)), 3);
++            var stats = collector.Snapshot();
++            Assert.That(stats.Left.HasStrength, Is.True);
++            Assert.That(stats.Left.MeanStrength01, Is.EqualTo(0.25).Within(0.001));
++            Assert.That(stats.Left.MaxStrength01, Is.EqualTo(1));
++            Assert.That(stats.Left.ValidDurationSeconds, Is.EqualTo(4));
++            Assert.That(stats.Left.PressedDurationSeconds, Is.EqualTo(1));
++            Assert.That(stats.Left.HasForce, Is.False);
++            Assert.That(stats.Left.ForceValidDurationSeconds, Is.Zero);
++        }
++
++        [Test]
++        public void ForceMeanUsesOnlyForceAvailableDurationAndIncludesZero()
++        {
++            var collector = new ForceStatsCollector();
++            collector.Accumulate(Sample(new HandInput(true, 1, true, 8)), 1);
++            collector.Accumulate(Sample(new HandInput(false, 0, true, 0)), 3);
++            collector.Accumulate(Sample(new HandInput(true, 1, true, null)), 10);
++            var stats = collector.Snapshot().Left;
++            Assert.That(stats.HasForce, Is.True);
++            Assert.That(stats.MeanForceN, Is.EqualTo(2).Within(0.001));
++            Assert.That(stats.MaxForceN, Is.EqualTo(8));
++            Assert.That(stats.ForceValidDurationSeconds, Is.EqualTo(4));
++            Assert.That(stats.ValidDurationSeconds, Is.EqualTo(14));
++        }
++
++        [Test]
++        public void InvalidHandDoesNotRemoveOtherHandsValidTime()
++        {
++            var collector = new ForceStatsCollector();
++            collector.Accumulate(new InputSnapshot(new HandInput(true, 1, false, 99),
++                new HandInput(true, 0.5f, true, 4), "Sensor"), 2);
++            var stats = collector.Snapshot();
++            Assert.That(stats.Left.HasStrength, Is.False);
++            Assert.That(stats.Left.HasForce, Is.False);
++            Assert.That(stats.Left.PressedDurationSeconds, Is.Zero);
++            Assert.That(stats.Right.MeanStrength01, Is.EqualTo(0.5f));
++            Assert.That(stats.Right.ValidDurationSeconds, Is.EqualTo(2));
++            Assert.That(stats.BothPressedDurationSeconds, Is.Zero);
++            Assert.That(stats.HasBalance, Is.True);
++            Assert.That(stats.LeftBalance01, Is.Zero);
++        }
++
++        [Test]
++        public void BalanceUsesPressedDurationAndCountsValidBothPressedTime()
++        {
++            var collector = new ForceStatsCollector();
++            var pressed = new HandInput(true, 1, true, null);
++            collector.Accumulate(new InputSnapshot(pressed, pressed, "Keyboard"), 2);
++            collector.Accumulate(Sample(pressed), 4);
++            var stats = collector.Snapshot();
++            Assert.That(stats.BothPressedDurationSeconds, Is.EqualTo(2));
++            Assert.That(stats.HasBalance, Is.True);
++            Assert.That(stats.LeftBalance01, Is.EqualTo(0.75f));
++        }
++
++        [Test]
++        public void ReleasedHandsHaveStrengthButNoBalance()
++        {
++            var collector = new ForceStatsCollector();
++            var released = new HandInput(false, 0, true, null);
++            collector.Accumulate(new InputSnapshot(released, released, "Keyboard"), 1);
++            var stats = collector.Snapshot();
++            Assert.That(stats.Left.HasStrength, Is.True);
++            Assert.That(stats.Left.MeanStrength01, Is.Zero);
++            Assert.That(stats.HasBalance, Is.False);
++        }
++
++        [TestCase(0f)]
++        [TestCase(-1f)]
++        [TestCase(float.NaN)]
++        [TestCase(float.PositiveInfinity)]
++        [TestCase(float.NegativeInfinity)]
++        public void InvalidDurationDoesNotContribute(float dt)
++        {
++            var collector = new ForceStatsCollector();
++            collector.Accumulate(Sample(new HandInput(true, 1, true, 10)), dt);
++            var stats = collector.Snapshot();
++            Assert.That(stats.Left.HasStrength, Is.False);
++            Assert.That(stats.Left.HasForce, Is.False);
++            Assert.That(stats.Left.PressedDurationSeconds, Is.Zero);
++            Assert.That(stats.HasBalance, Is.False);
++        }
++
++        [Test]
++        public void ResetAndSnapshotCopiesProtectCollectedState()
++        {
++            var collector = new ForceStatsCollector();
++            collector.Accumulate(Sample(new HandInput(true, 1, true, 10)), 2);
++            var first = collector.Snapshot();
++            first.Left.MeanStrength01 = 99;
++            first.Left.PressedDurationSeconds = 99;
++            first.Right.HasStrength = true;
++            first.BothPressedDurationSeconds = 99;
++            var second = collector.Snapshot();
++            Assert.That(second.Left.MeanStrength01, Is.EqualTo(1));
++            Assert.That(second.Left.PressedDurationSeconds, Is.EqualTo(2));
++            Assert.That(second.Right.HasStrength, Is.False);
++            Assert.That(second.BothPressedDurationSeconds, Is.Zero);
++            collector.Reset();
++            var empty = collector.Snapshot();
++            Assert.That(empty.Left.HasStrength, Is.False);
++            Assert.That(empty.Left.HasForce, Is.False);
++            Assert.That(empty.Left.PressedDurationSeconds, Is.Zero);
++            Assert.That(empty.HasBalance, Is.False);
++            Assert.That(second.Left.MeanForceN, Is.EqualTo(10));
++        }
++
++        [TestCase(float.NaN)]
++        [TestCase(float.PositiveInfinity)]
++        [TestCase(float.NegativeInfinity)]
++        public void NonfiniteStrengthDoesNotDiscardValidForceOrPressedTime(float strength)
++        {
++            var collector = new ForceStatsCollector();
++            collector.Accumulate(Sample(new HandInput(true, strength, true, 5)), 2);
++            var stats = collector.Snapshot().Left;
++            Assert.That(stats.HasStrength, Is.False);
++            Assert.That(stats.ValidDurationSeconds, Is.Zero);
++            Assert.That(stats.HasForce, Is.True);
++            Assert.That(stats.MeanForceN, Is.EqualTo(5));
++            Assert.That(stats.ForceValidDurationSeconds, Is.EqualTo(2));
++            Assert.That(stats.PressedDurationSeconds, Is.EqualTo(2));
++        }
++
++        [TestCase(float.NaN)]
++        [TestCase(float.PositiveInfinity)]
++        [TestCase(float.NegativeInfinity)]
++        [TestCase(-1f)]
++        public void InvalidForceDoesNotContaminateValidStrength(float force)
++        {
++            var collector = new ForceStatsCollector();
++            collector.Accumulate(Sample(new HandInput(true, 0.5f, true, force)), 2);
++            collector.Accumulate(Sample(new HandInput(false, 0, true, 2)), 1);
++            var stats = collector.Snapshot().Left;
++            Assert.That(stats.MeanStrength01, Is.EqualTo(1f / 3).Within(0.001));
++            Assert.That(stats.MeanForceN, Is.EqualTo(2));
++            Assert.That(stats.ForceValidDurationSeconds, Is.EqualTo(1));
++            Assert.That(stats.MaxForceN, Is.EqualTo(2));
++        }
++
++        [Test]
++        public void FiniteStrengthOutsideNormalizedRangeIsClamped()
++        {
++            var collector = new ForceStatsCollector();
++            collector.Accumulate(Sample(new HandInput(true, 2, true, null)), 1);
++            collector.Accumulate(Sample(new HandInput(false, -1, true, null)), 1);
++            var stats = collector.Snapshot().Left;
++            Assert.That(stats.MeanStrength01, Is.EqualTo(0.5f));
++            Assert.That(stats.MaxStrength01, Is.EqualTo(1));
++        }
++
++        [Test]
++        public void LargeFiniteValuesDoNotOverflowWeightedMeans()
++        {
++            var collector = new ForceStatsCollector();
++            collector.Accumulate(Sample(new HandInput(true, 1, true, float.MaxValue)), 2);
++            Assert.That(collector.Snapshot().Left.MeanForceN, Is.EqualTo(float.MaxValue));
++        }
++
++        private static InputSnapshot Sample(HandInput left) =>
++            new InputSnapshot(left, default, "Test");
++    }
++}
+diff --git a/Assets/CPS/Tests/EditMode/InputStatsTests.cs.meta b/Assets/CPS/Tests/EditMode/InputStatsTests.cs.meta
+new file mode 100644
+index 0000000..9c88833
+--- /dev/null
++++ b/Assets/CPS/Tests/EditMode/InputStatsTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: a6ca4d4a405688a4abaa68be8961ee53
+\ No newline at end of file
+diff --git a/Assets/CPS/Tests/PlayMode.meta b/Assets/CPS/Tests/PlayMode.meta
+new file mode 100644
+index 0000000..79a8736
+--- /dev/null
++++ b/Assets/CPS/Tests/PlayMode.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: daa7976991f2e3a45bdb7231e6732387
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Tests/PlayMode/CPS.PlayModeTests.asmdef b/Assets/CPS/Tests/PlayMode/CPS.PlayModeTests.asmdef
+new file mode 100644
+index 0000000..4a1e61d
+--- /dev/null
++++ b/Assets/CPS/Tests/PlayMode/CPS.PlayModeTests.asmdef
+@@ -0,0 +1,6 @@
++{
++    "name": "CPS.PlayModeTests",
++    "rootNamespace": "CPS.KitchenCatch.Tests",
++    "references": ["CPS.Runtime", "Unity.InputSystem", "Unity.InputSystem.TestFramework"],
++    "optionalUnityReferences": ["TestAssemblies"]
++}
+diff --git a/Assets/CPS/Tests/PlayMode/CPS.PlayModeTests.asmdef.meta b/Assets/CPS/Tests/PlayMode/CPS.PlayModeTests.asmdef.meta
+new file mode 100644
+index 0000000..668ce2a
+--- /dev/null
++++ b/Assets/CPS/Tests/PlayMode/CPS.PlayModeTests.asmdef.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: f6a28b80de41ba6479d6aa2626b8121c
++AssemblyDefinitionImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs b/Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs
+new file mode 100644
+index 0000000..5872053
+--- /dev/null
++++ b/Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs
+@@ -0,0 +1,165 @@
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.InputSystem;
++using UnityEngine.InputSystem.LowLevel;
++
++namespace CPS.KitchenCatch.Tests
++{
++    public sealed class KeyboardPlayerTests : InputTestFixture
++    {
++        private GameObject playerObject;
++        private KeyboardInput keyboardInput;
++        private PlayerController player;
++        private Keyboard keyboard;
++
++        [SetUp]
++        public override void Setup()
++        {
++            base.Setup();
++            keyboard = InputSystem.AddDevice<Keyboard>();
++            playerObject = new GameObject("Player");
++            keyboardInput = playerObject.AddComponent<KeyboardInput>();
++            player = playerObject.AddComponent<PlayerController>();
++        }
++
++        [TearDown]
++        public override void TearDown()
++        {
++            Object.DestroyImmediate(playerObject);
++            base.TearDown();
++        }
++
++        [TestCase(true, false, -1)]
++        [TestCase(false, true, 1)]
++        [TestCase(true, true, 0)]
++        [TestCase(false, false, 0)]
++        public void KeyboardStatesMoveLeftRightBothOrNeither(bool left, bool right, int direction)
++        {
++            QueueKeys(left, right);
++            var input = keyboardInput.Read();
++            player.Step(input, 0.5f);
++            Assert.That(player.MovementDirection, Is.EqualTo(direction));
++            Assert.That(player.transform.position.x, Is.EqualTo(direction * 3.5f).Within(0.001));
++            Assert.That(input.Source, Is.EqualTo("Keyboard"));
++            Assert.That(input.Left.Pressed, Is.EqualTo(left));
++            Assert.That(input.Right.Pressed, Is.EqualTo(right));
++            Assert.That(input.Left.Strength01, Is.EqualTo(left ? 1 : 0));
++            Assert.That(input.Right.Strength01, Is.EqualTo(right ? 1 : 0));
++            Assert.That(input.Left.Valid, Is.True);
++            Assert.That(input.Right.Valid, Is.True);
++            Assert.That(input.Left.ForceN, Is.Null);
++            Assert.That(input.Right.ForceN, Is.Null);
++        }
++
++        [TestCase(Key.A, Key.LeftArrow, -1)]
++        [TestCase(Key.D, Key.RightArrow, 1)]
++        public void ReleasingOneAliasKeepsOtherAliasPressed(Key letter, Key arrow, int direction)
++        {
++            InputSystem.QueueStateEvent(keyboard, new KeyboardState(letter, arrow));
++            InputSystem.Update();
++            player.Step(keyboardInput.Read(), 0.1f);
++            InputSystem.QueueStateEvent(keyboard, new KeyboardState(arrow));
++            InputSystem.Update();
++            player.Step(keyboardInput.Read(), 0.1f);
++            Assert.That(player.MovementDirection, Is.EqualTo(direction));
++            Assert.That(player.transform.position.x, Is.EqualTo(direction * 1.4f).Within(0.001));
++        }
++
++        [Test]
++        public void MissingKeyboardReturnsInvalidEmptyInput()
++        {
++            InputSystem.RemoveDevice(keyboard);
++            var input = keyboardInput.Read();
++            AssertInvalidEmpty(input);
++            player.Step(input, 1);
++            Assert.That(player.transform.position.x, Is.Zero);
++        }
++
++        [Test]
++        public void FocusLossReturnsInvalidInputAndDoesNotAccumulateTime()
++        {
++            QueueKeys(true, false);
++            playerObject.SendMessage("OnApplicationFocus", false, SendMessageOptions.DontRequireReceiver);
++            var input = keyboardInput.Read();
++            AssertInvalidEmpty(input);
++            var collector = new ForceStatsCollector();
++            collector.Accumulate(input, 3);
++            Assert.That(collector.Snapshot().Left.HasStrength, Is.False);
++            playerObject.SendMessage("OnApplicationFocus", true, SendMessageOptions.DontRequireReceiver);
++            QueueKeys(false, true);
++            Assert.That(keyboardInput.Read().Right.Pressed, Is.True);
++        }
++
++        [TestCase(30)]
++        [TestCase(60)]
++        [TestCase(120)]
++        public void MovementDistanceIsIndependentOfStepRate(int steps)
++        {
++            QueueKeys(false, true);
++            for (int i = 0; i < steps; i++)
++                player.Step(keyboardInput.Read(), 1f / steps);
++            Assert.That(player.transform.position.x, Is.EqualTo(7).Within(0.001));
++        }
++
++        [Test]
++        public void MovementClampsVisibleWidthAndResetPreservesOtherAxes()
++        {
++            player.transform.position = new Vector3(0, -3, 2);
++            QueueKeys(false, true);
++            player.Step(keyboardInput.Read(), 10);
++            Assert.That(player.transform.position.x, Is.EqualTo(7.5f));
++            QueueKeys(true, false);
++            player.Step(keyboardInput.Read(), 10);
++            Assert.That(player.transform.position.x, Is.EqualTo(-7.5f));
++            player.ResetPosition();
++            Assert.That(player.transform.position, Is.EqualTo(new Vector3(0, -3, 2)));
++            Assert.That(player.MovementDirection, Is.Zero);
++        }
++
++        [Test]
++        public void CatchZoneTracksPositionWithoutFacingOrScaleChanges()
++        {
++            player.transform.position = new Vector3(2, -3, 0);
++            var before = player.CatchZone;
++            Assert.That(before.center, Is.EqualTo(new Vector3(2, -2.5f, 0)));
++            Assert.That(before.size, Is.EqualTo(new Vector3(1.5f, 0.5f, 0.2f)));
++            player.transform.localScale = new Vector3(-2, 3, 1);
++            player.transform.rotation = Quaternion.Euler(0, 0, 20);
++            Assert.That(player.CatchZone, Is.EqualTo(before));
++            player.transform.position += Vector3.right;
++            Assert.That(player.CatchZone.center.x, Is.EqualTo(3));
++        }
++
++        [Test]
++        public void InvalidHandAndInvalidDurationDoNotMovePlayer()
++        {
++            var invalid = new HandInput(true, 1, false, null);
++            player.Step(new InputSnapshot(invalid, default, "Test"), 1);
++            QueueKeys(false, true);
++            foreach (float dt in new[] { -1f, 0f, float.NaN, float.PositiveInfinity })
++                player.Step(keyboardInput.Read(), dt);
++            Assert.That(player.transform.position.x, Is.Zero);
++        }
++
++        private void QueueKeys(bool left, bool right)
++        {
++            var state = new KeyboardState();
++            if (left) state.Set(Key.A, true);
++            if (right) state.Set(Key.D, true);
++            InputSystem.QueueStateEvent(keyboard, state);
++            InputSystem.Update();
++        }
++
++        private static void AssertInvalidEmpty(InputSnapshot input)
++        {
++            Assert.That(input.Left.Valid, Is.False);
++            Assert.That(input.Right.Valid, Is.False);
++            Assert.That(input.Left.Pressed, Is.False);
++            Assert.That(input.Right.Pressed, Is.False);
++            Assert.That(input.Left.Strength01, Is.Zero);
++            Assert.That(input.Right.Strength01, Is.Zero);
++            Assert.That(input.Left.ForceN, Is.Null);
++            Assert.That(input.Right.ForceN, Is.Null);
++        }
++    }
++}
+diff --git a/Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs.meta b/Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs.meta
+new file mode 100644
+index 0000000..50a6bbc
+--- /dev/null
++++ b/Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 50a478dad006f004594e96c9aff5d29a
+\ No newline at end of file

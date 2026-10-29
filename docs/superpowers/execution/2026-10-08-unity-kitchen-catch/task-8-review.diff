@@ -1,0 +1,591 @@
+# Review package: 9f72081bdff5a1990596274e9f87e1b390713264..10c47f5715786b9eb4a4ce25598cc85a6f968a2a
+
+## Commits
+10c47f5 build: verify and document webgl demo
+
+## Files changed
+ Assets/CPS/Development.meta                        |   8 ++
+ .../CPS/Development/DevelopmentBrowserHarness.cs   | 113 +++++++++++++++++++++
+ .../Development/DevelopmentBrowserHarness.cs.meta  |   2 +
+ Assets/CPS/Editor/WebGLBuild.cs                    |  91 +++++++++++++++++
+ Assets/CPS/Editor/WebGLBuild.cs.meta               |   2 +
+ Assets/CPS/Tests/EditMode/BuildValidationTests.cs  | 112 ++++++++++++++++++++
+ .../Tests/EditMode/BuildValidationTests.cs.meta    |   2 +
+ Assets/CPS/Tests/EditMode/CPS.EditModeTests.asmdef |   2 +-
+ Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs    |  21 ++--
+ 9 files changed, 345 insertions(+), 8 deletions(-)
+
+## Diff
+diff --git a/Assets/CPS/Development.meta b/Assets/CPS/Development.meta
+new file mode 100644
+index 0000000..3820b9a
+--- /dev/null
++++ b/Assets/CPS/Development.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 9859950d5c244a13ad0358e2c84d8fd4
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Development/DevelopmentBrowserHarness.cs b/Assets/CPS/Development/DevelopmentBrowserHarness.cs
+new file mode 100644
+index 0000000..8f6bd70
+--- /dev/null
++++ b/Assets/CPS/Development/DevelopmentBrowserHarness.cs
+@@ -0,0 +1,113 @@
++#if DEVELOPMENT_BUILD || UNITY_EDITOR
++using System;
++using System.Reflection;
++using Unity.Profiling;
++using UnityEngine;
++using UnityEngine.InputSystem;
++
++namespace CPS.KitchenCatch
++{
++    public sealed class DevelopmentBrowserHarness : MonoBehaviour
++    {
++        private static readonly MethodInfo FinishRound = typeof(GameSessionController).GetMethod("FinishRound", BindingFlags.Instance | BindingFlags.NonPublic);
++        private GameSessionController controller;
++        private SessionState lastState = SessionState.Ready;
++        private ProfilerRecorder gcRecorder;
++        private int frameCount;
++        private float elapsedSeconds;
++        private float maximumFrameMilliseconds;
++        private long totalGcBytes;
++        private long maximumGcBytes;
++
++#if DEVELOPMENT_BUILD
++        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
++        private static void Install()
++        {
++            var host = new GameObject("DevelopmentBrowserHarness");
++            DontDestroyOnLoad(host);
++            host.AddComponent<DevelopmentBrowserHarness>();
++        }
++#endif
++
++        private void Awake()
++        {
++            gcRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Memory, "GC Allocated In Frame");
++        }
++
++        private void Update()
++        {
++            var keyboard = Keyboard.current;
++            if (keyboard != null && keyboard.f6Key.wasPressedThisFrame) Application.targetFrameRate = 30;
++            if (keyboard != null && keyboard.f7Key.wasPressedThisFrame) Application.targetFrameRate = 60;
++
++            if (controller == null) controller = FindFirstObjectByType<GameSessionController>();
++            if (controller == null) return;
++
++            SessionState current = controller.State;
++            if (current == SessionState.Playing && lastState != SessionState.Playing) ResetMetrics();
++            if (current == SessionState.Playing) SampleMetrics();
++
++            if (current == SessionState.Playing && keyboard != null && keyboard.f8Key.wasPressedThisFrame) Finish(EndReason.Triumph);
++            if (current == SessionState.Playing && keyboard != null && keyboard.f9Key.wasPressedThisFrame) Finish(EndReason.HpDepleted);
++
++            current = controller.State;
++            if (current == SessionState.Results && lastState != SessionState.Results) LogMetrics();
++            lastState = current;
++        }
++
++        private void Finish(EndReason reason)
++        {
++            if (reason == EndReason.Triumph)
++            {
++                controller.Model.CompleteStep(controller.Model.RemainingSeconds);
++            }
++            else
++            {
++                for (long id = -1; id >= -3; id--)
++                    controller.Model.Resolve(id, ObjectKind.Food, ObjectOutcome.Missed, 0);
++                controller.Model.CompleteStep(0);
++            }
++
++            if (controller.Model.State == SessionState.Triumph || controller.Model.State == SessionState.Dying)
++                FinishRound?.Invoke(controller, null);
++        }
++
++        private void ResetMetrics()
++        {
++            frameCount = 0;
++            elapsedSeconds = 0;
++            maximumFrameMilliseconds = 0;
++            totalGcBytes = 0;
++            maximumGcBytes = 0;
++        }
++
++        private void SampleMetrics()
++        {
++            float seconds = Time.unscaledDeltaTime;
++            long gcBytes = gcRecorder.Valid ? gcRecorder.LastValue : -1;
++            frameCount++;
++            elapsedSeconds += seconds;
++            maximumFrameMilliseconds = Math.Max(maximumFrameMilliseconds, seconds * 1000);
++            if (gcBytes >= 0)
++            {
++                totalGcBytes += gcBytes;
++                maximumGcBytes = Math.Max(maximumGcBytes, gcBytes);
++            }
++        }
++
++        private void LogMetrics()
++        {
++            float averageFrameMilliseconds = frameCount > 0 ? elapsedSeconds * 1000 / frameCount : 0;
++            float framesPerSecond = elapsedSeconds > 0 ? frameCount / elapsedSeconds : 0;
++            long averageGcBytes = frameCount > 0 && gcRecorder.Valid ? totalGcBytes / frameCount : -1;
++            long peakGcBytes = gcRecorder.Valid ? maximumGcBytes : -1;
++            Debug.Log($"CPS_DEV_METRICS difficulty={controller.LastResult.Difficulty} end={controller.LastResult.EndReason} target={Application.targetFrameRate} frames={frameCount} elapsed={elapsedSeconds:F3} fps={framesPerSecond:F2} avgFrameMs={averageFrameMilliseconds:F3} maxFrameMs={maximumFrameMilliseconds:F3} avgGcBytes={averageGcBytes} maxGcBytes={peakGcBytes}");
++        }
++
++        private void OnDestroy()
++        {
++            gcRecorder.Dispose();
++        }
++    }
++}
++#endif
+diff --git a/Assets/CPS/Development/DevelopmentBrowserHarness.cs.meta b/Assets/CPS/Development/DevelopmentBrowserHarness.cs.meta
+new file mode 100644
+index 0000000..a8f9723
+--- /dev/null
++++ b/Assets/CPS/Development/DevelopmentBrowserHarness.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 2e1dd01787624c698d6e261142698c90
+diff --git a/Assets/CPS/Editor/WebGLBuild.cs b/Assets/CPS/Editor/WebGLBuild.cs
+new file mode 100644
+index 0000000..256cbdd
+--- /dev/null
++++ b/Assets/CPS/Editor/WebGLBuild.cs
+@@ -0,0 +1,91 @@
++using System;
++using System.IO;
++using UnityEditor;
++using UnityEditor.Build.Reporting;
++using UnityEngine;
++
++namespace CPS.KitchenCatch.Editor
++{
++    public static class WebGLBuild
++    {
++        public const string ReleaseOutputFolder = "Builds/WebGL";
++        public const string DevelopmentOutputFolder = "Builds/WebGL-Dev";
++        public const BuildOptions DevelopmentOptions = BuildOptions.Development;
++        private const string RigPath = "Assets/CPS/Prefabs/GameplayRig.prefab";
++        private static readonly string[] RequiredScenes =
++        {
++            "Assets/CPS/Scenes/Boot.unity",
++            "Assets/CPS/Scenes/MainMenu.unity",
++            "Assets/CPS/Scenes/Gameplay.unity"
++        };
++
++        public static void Validate(EditorBuildSettingsScene[] scenes, GameSessionController template)
++        {
++            if (scenes == null) throw new InvalidOperationException("Build scenes are missing.");
++            foreach (string required in RequiredScenes)
++            {
++                bool enabled = false;
++                foreach (var scene in scenes)
++                    if (scene != null && scene.enabled && scene.path == required) enabled = true;
++                if (!enabled) throw new InvalidOperationException(Path.GetFileNameWithoutExtension(required) + " scene must be enabled for WebGL build.");
++            }
++
++            if (template == null) throw new InvalidOperationException("GameplayRig GameSessionController is missing.");
++            var controller = new SerializedObject(template);
++            if (controller.FindProperty("player").objectReferenceValue == null)
++                throw new InvalidOperationException("GameplayRig player reference is missing.");
++            if (controller.FindProperty("keyboardInput").objectReferenceValue == null)
++                throw new InvalidOperationException("GameplayRig keyboard input reference is missing.");
++            var spawner = controller.FindProperty("spawner").objectReferenceValue as FallingObjectSpawner;
++            if (spawner == null) throw new InvalidOperationException("GameplayRig spawner reference is missing.");
++
++            var difficulties = controller.FindProperty("difficulties");
++            foreach (DifficultyId id in new[] { DifficultyId.Easy, DifficultyId.Normal, DifficultyId.Hard })
++            {
++                DifficultyConfig config = null;
++                for (int i = 0; i < difficulties.arraySize; i++)
++                {
++                    var candidate = difficulties.GetArrayElementAtIndex(i).objectReferenceValue as DifficultyConfig;
++                    if (candidate != null && candidate.difficulty == id) config = candidate;
++                }
++                if (config == null) throw new InvalidOperationException(id + " difficulty config is missing.");
++                string error = spawner.GetValidationError(config);
++                if (error != null) throw new InvalidOperationException(id + ": " + error);
++            }
++        }
++
++        public static void Build()
++        {
++            ValidateReleaseOptions(BuildOptions.None);
++            BuildAt(ReleaseOutputFolder, BuildOptions.None);
++        }
++
++        public static void BuildDevelopment()
++        {
++            BuildAt(DevelopmentOutputFolder, DevelopmentOptions);
++        }
++
++        public static void ValidateReleaseOptions(BuildOptions options)
++        {
++            if ((options & BuildOptions.Development) != 0)
++                throw new InvalidOperationException("Release WebGL build cannot include Development options.");
++        }
++
++        private static void BuildAt(string outputFolder, BuildOptions options)
++        {
++            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(RigPath);
++            Validate(EditorBuildSettings.scenes, prefab != null ? prefab.GetComponent<GameSessionController>() : null);
++            string output = Path.GetFullPath(Path.Combine(Application.dataPath, "..", outputFolder));
++            Directory.CreateDirectory(output);
++            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
++            {
++                scenes = RequiredScenes,
++                locationPathName = output,
++                target = BuildTarget.WebGL,
++                options = options
++            });
++            if (report.summary.result != BuildResult.Succeeded)
++                throw new InvalidOperationException("WebGL build failed: " + report.summary.result);
++        }
++    }
++}
+diff --git a/Assets/CPS/Editor/WebGLBuild.cs.meta b/Assets/CPS/Editor/WebGLBuild.cs.meta
+new file mode 100644
+index 0000000..c933a2f
+--- /dev/null
++++ b/Assets/CPS/Editor/WebGLBuild.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 78e881ab065a44f881f57d44c542124f
+diff --git a/Assets/CPS/Tests/EditMode/BuildValidationTests.cs b/Assets/CPS/Tests/EditMode/BuildValidationTests.cs
+new file mode 100644
+index 0000000..3dd3a0f
+--- /dev/null
++++ b/Assets/CPS/Tests/EditMode/BuildValidationTests.cs
+@@ -0,0 +1,112 @@
++using System;
++using System.IO;
++using CPS.KitchenCatch.Editor;
++using NUnit.Framework;
++using UnityEditor;
++using UnityEngine;
++using Object = UnityEngine.Object;
++
++namespace CPS.KitchenCatch.Tests
++{
++    public sealed class BuildValidationTests
++    {
++        private const string RigPath = "Assets/CPS/Prefabs/GameplayRig.prefab";
++
++        [Test]
++        public void ProductionBuildInputsValidate()
++        {
++            WebGLBuild.Validate(EditorBuildSettings.scenes, LoadTemplate());
++        }
++
++        [Test]
++        public void DisabledRequiredSceneBlocksValidation()
++        {
++            var scenes = (EditorBuildSettingsScene[])EditorBuildSettings.scenes.Clone();
++            scenes[1] = new EditorBuildSettingsScene(scenes[1].path, false);
++
++            var error = Assert.Throws<InvalidOperationException>(() => WebGLBuild.Validate(scenes, LoadTemplate()));
++
++            Assert.That(error.Message, Does.Contain("MainMenu"));
++        }
++
++        [Test]
++        public void MissingDifficultyReferenceBlocksValidation()
++        {
++            var instance = Object.Instantiate(LoadTemplate().gameObject);
++            instance.SetActive(false);
++            try
++            {
++                var controller = instance.GetComponent<GameSessionController>();
++                var difficulties = new SerializedObject(controller).FindProperty("difficulties");
++                difficulties.GetArrayElementAtIndex(1).objectReferenceValue = null;
++                difficulties.serializedObject.ApplyModifiedPropertiesWithoutUndo();
++
++                var error = Assert.Throws<InvalidOperationException>(() => WebGLBuild.Validate(EditorBuildSettings.scenes, controller));
++
++                Assert.That(error.Message, Does.Contain("Normal"));
++            }
++            finally
++            {
++                Object.DestroyImmediate(instance);
++            }
++        }
++
++        [Test]
++        public void MissingFoodDefinitionBlocksValidation()
++        {
++            var instance = Object.Instantiate(LoadTemplate().gameObject);
++            instance.SetActive(false);
++            try
++            {
++                var controller = instance.GetComponent<GameSessionController>();
++                var spawner = instance.GetComponent<FallingObjectSpawner>();
++                var foods = new SerializedObject(spawner).FindProperty("foodDefinitions");
++                foods.GetArrayElementAtIndex(0).objectReferenceValue = null;
++                foods.serializedObject.ApplyModifiedPropertiesWithoutUndo();
++
++                var error = Assert.Throws<InvalidOperationException>(() => WebGLBuild.Validate(EditorBuildSettings.scenes, controller));
++
++                Assert.That(error.Message, Does.Contain("food"));
++            }
++            finally
++            {
++                Object.DestroyImmediate(instance);
++            }
++        }
++
++        [Test]
++        public void ReleaseBuildRejectsDevelopmentOptions()
++        {
++            var error = Assert.Throws<InvalidOperationException>(() => WebGLBuild.ValidateReleaseOptions(BuildOptions.Development));
++
++            Assert.That(error.Message, Does.Contain("Release"));
++        }
++
++        [Test]
++        public void DevelopmentBuildUsesSeparateOutputAndDevelopmentFlag()
++        {
++            Assert.That(WebGLBuild.DevelopmentOutputFolder, Is.Not.EqualTo(WebGLBuild.ReleaseOutputFolder));
++            Assert.That(WebGLBuild.DevelopmentOptions.HasFlag(BuildOptions.Development), Is.True);
++        }
++
++        [Test]
++        public void BrowserHarnessIsExcludedFromReleasePlayers()
++        {
++            string source = File.ReadAllText("Assets/CPS/Development/DevelopmentBrowserHarness.cs");
++
++            Assert.That(source, Does.StartWith("#if DEVELOPMENT_BUILD || UNITY_EDITOR"));
++            Assert.That(source, Does.Contain("#if DEVELOPMENT_BUILD\n        [RuntimeInitializeOnLoadMethod"));
++            Assert.That(source, Does.Contain("Keyboard.current"));
++            Assert.That(source, Does.Not.Contain("Input.GetKeyDown"));
++        }
++
++        private static GameSessionController LoadTemplate()
++        {
++            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(RigPath);
++            Assert.That(prefab, Is.Not.Null);
++            var controller = prefab.GetComponent<GameSessionController>();
++            Assert.That(controller, Is.Not.Null);
++            return controller;
++        }
++    }
++}
+diff --git a/Assets/CPS/Tests/EditMode/BuildValidationTests.cs.meta b/Assets/CPS/Tests/EditMode/BuildValidationTests.cs.meta
+new file mode 100644
+index 0000000..e1e513f
+--- /dev/null
++++ b/Assets/CPS/Tests/EditMode/BuildValidationTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 9d846e98181c4a1e80afba0a37359331
+diff --git a/Assets/CPS/Tests/EditMode/CPS.EditModeTests.asmdef b/Assets/CPS/Tests/EditMode/CPS.EditModeTests.asmdef
+index 340f710..8064bd3 100644
+--- a/Assets/CPS/Tests/EditMode/CPS.EditModeTests.asmdef
++++ b/Assets/CPS/Tests/EditMode/CPS.EditModeTests.asmdef
+@@ -1,7 +1,7 @@
+ {
+     "name": "CPS.EditModeTests",
+     "rootNamespace": "CPS.KitchenCatch.Tests",
+-    "references": ["CPS.Runtime"],
++    "references": ["CPS.Runtime", "CPS.Editor"],
+     "includePlatforms": ["Editor"],
+     "optionalUnityReferences": ["TestAssemblies"]
+ }
+diff --git a/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs b/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs
+index 2e1036c..5b3b8ad 100644
+--- a/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs
++++ b/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs
+@@ -42,21 +42,21 @@ public IEnumerator Cleanup()
+             var idle = SceneManager.GetSceneByName("Task5TestIdle");
+             if (!idle.IsValid()) idle = SceneManager.CreateScene("Task5TestIdle");
+             SceneManager.SetActiveScene(idle);
+             foreach (var scene in loaded) yield return SceneManager.UnloadSceneAsync(scene);
+         }
+         [UnityTest]
+         public IEnumerator BootRoutesToMenuAndGuardRejectsDuplicateTransition()
+         {
+             Assert.That(Application.CanStreamedLevelBeLoaded("Boot"), Is.True);
+             yield return SceneManager.LoadSceneAsync("Boot");
+-            for (int i = 0; i < 100 && SceneManager.GetActiveScene().name != "MainMenu"; i++) yield return null;
++            yield return WaitForActiveScene("MainMenu");
+             Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("MainMenu"));
+             Assert.That(Object.FindObjectsByType<AppSession>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
+             var menu = Object.FindFirstObjectByType<MainMenuUI>();
+             Assert.That(menu.ValidationError, Does.Contain("profile"));
+             CreateSelectedProfile(menu, DifficultyId.Normal);
+             string firstId = app.SelectedProfile.PlayerId;
+             var input = (InputField)typeof(MainMenuUI).GetField("nicknameField", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(menu);
+             input.text = "Demo Player";
+             Assert.That(menu.CreateProfile(), Is.True);
+             string secondId = app.SelectedProfile.PlayerId;
+@@ -68,38 +68,38 @@ public IEnumerator BootRoutesToMenuAndGuardRejectsDuplicateTransition()
+             dropdown.value = 1;
+             Assert.That(app.SelectedProfile.PlayerId, Is.EqualTo(secondId));
+             Assert.That(EventSystem.current.currentSelectedGameObject, Is.SameAs(input.gameObject));
+             var create = (Button)typeof(MainMenuUI).GetField("createButton", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(menu);
+             Assert.That(input.navigation.selectOnDown, Is.SameAs(create));
+             var start = (Button)typeof(MainMenuUI).GetField("startButton", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(menu);
+             start.onClick.Invoke();
+             Assert.That(menu.GetComponent<SceneNavigator>().IsTransitioning, Is.True);
+             start.onClick.Invoke();
+             Assert.That(menu.StartSelectedGame(), Is.False);
+-            for (int i = 0; i < 100 && SceneManager.GetActiveScene().name != "Gameplay"; i++) yield return null;
++            yield return WaitForActiveScene("Gameplay");
+             Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("Gameplay"));
+             var flow = Object.FindFirstObjectByType<GameSessionController>();
+             Assert.That(flow.ValidationError, Is.Null);
+             Assert.That(flow.State, Is.EqualTo(SessionState.Ready));
+         }
+         [UnityTest]
+         public IEnumerator AuthoredScenesCompleteAllDifficultiesAndReturnWithPersistentSelection()
+         {
+             Assert.That(Application.CanStreamedLevelBeLoaded("MainMenu"), Is.True);
+             foreach (DifficultyId difficulty in new[] { DifficultyId.Easy, DifficultyId.Normal, DifficultyId.Hard })
+             {
+                 yield return SceneManager.LoadSceneAsync("MainMenu"); yield return null;
+                 var menu = Object.FindFirstObjectByType<MainMenuUI>();
+                 CreateSelectedProfile(menu, difficulty);
+                 Assert.That(menu.ValidationError, Is.Null);
+                 Assert.That(menu.StartSelectedGame(), Is.True);
+-                for (int i = 0; i < 100 && SceneManager.GetActiveScene().name != "Gameplay"; i++) yield return null;
++                yield return WaitForActiveScene("Gameplay");
+                 yield return null;
+                 var flow = Object.FindFirstObjectByType<GameSessionController>(); flow.enabled = false;
+                 flow.Restart(); flow.Step(3);
+                 var spawner = Object.FindFirstObjectByType<FallingObjectSpawner>();
+                 for (int second = 0; second < 60; second++)
+                 {
+                     foreach (var item in spawner.GetComponentsInChildren<FallingObject>())
+                     {
+                         var definition = (FallingObjectDefinition)typeof(FallingObject)
+                             .GetField("definition", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(item);
+@@ -135,21 +135,21 @@ public IEnumerator AuthoredScenesCompleteAllDifficultiesAndReturnWithPersistentS
+                 for (int second = 0; second < 20 && flow.State == SessionState.Playing; second++)
+                 {
+                     foreach (var item in spawner.GetComponentsInChildren<FallingObject>())
+                         item.TryResolve(item.SpawnId, ObjectOutcome.Missed);
+                     flow.Step(1);
+                 }
+                 Assert.That(flow.State, Is.EqualTo(SessionState.Dying));
+                 flow.Step(1.4f); Assert.That(flow.State, Is.EqualTo(SessionState.Results));
+                 var menuButton = (Button)typeof(ResultPanel).GetField("menuButton", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(results);
+                 menuButton.onClick.Invoke();
+-                for (int i = 0; i < 100 && SceneManager.GetActiveScene().name != "MainMenu"; i++) yield return null;
++                yield return WaitForActiveScene("MainMenu");
+                 Assert.That(app.SelectedDifficulty, Is.EqualTo(difficulty));
+                 var returnedMenu = Object.FindFirstObjectByType<MainMenuUI>();
+                 string selectedField = difficulty == DifficultyId.Easy ? "easyButton" :
+                     difficulty == DifficultyId.Normal ? "normalButton" : "hardButton";
+                 var selectedButton = (Button)typeof(MainMenuUI).GetField(selectedField,
+                     BindingFlags.Instance | BindingFlags.NonPublic).GetValue(returnedMenu);
+                 Assert.That(selectedButton.colors.normalColor, Is.EqualTo(Color.white));
+                 Assert.That(Object.FindObjectsByType<AppSession>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
+             }
+             Assert.That(app.SelectedProfile.PlayCount, Is.EqualTo(6));
+@@ -299,21 +299,21 @@ public void ViewportPreservesSixteenByNineInsideTallAndWideScreens()
+         }
+ 
+         [UnityTest]
+         public IEnumerator ProductionMenuGameplayAndResultsRenderAtRequiredSizes()
+         {
+             yield return SceneManager.LoadSceneAsync("MainMenu"); yield return null;
+             yield return CaptureProduction("menu", new Vector2Int(1920, 1080));
+             var menu = Object.FindFirstObjectByType<MainMenuUI>();
+             CreateSelectedProfile(menu, DifficultyId.Normal);
+             Assert.That(menu.StartSelectedGame(), Is.True);
+-            for (int i = 0; i < 100 && SceneManager.GetActiveScene().name != "Gameplay"; i++) yield return null;
++            yield return WaitForActiveScene("Gameplay");
+             yield return null;
+             var flow = Object.FindFirstObjectByType<GameSessionController>(); flow.enabled = false;
+             flow.Restart(); flow.Step(3);
+             foreach (var size in new[] { new Vector2Int(1280, 720), new Vector2Int(1920, 1080),
+                 new Vector2Int(1024, 768), new Vector2Int(1080, 1920) })
+                 yield return CaptureProduction("gameplay", size);
+             var ui = Object.FindFirstObjectByType<GameplayUI>();
+             var pause = (Button)typeof(GameplayUI).GetField("pauseButton", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ui);
+             var resume = (Button)typeof(GameplayUI).GetField("resumeButton", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ui);
+             pause.onClick.Invoke();
+@@ -343,21 +343,21 @@ public IEnumerator ProductionMenuGameplayAndResultsRenderAtRequiredSizes()
+             yield return CaptureProduction("results", new Vector2Int(1920, 1080));
+         }
+ 
+         [UnityTest]
+         public IEnumerator ProductionMascotClipsAndTerminalPhasesRenderInBothFacings()
+         {
+             yield return SceneManager.LoadSceneAsync("MainMenu");
+             var menu = Object.FindFirstObjectByType<MainMenuUI>();
+             CreateSelectedProfile(menu, DifficultyId.Normal);
+             Assert.That(menu.StartSelectedGame(), Is.True);
+-            for (int i = 0; i < 100 && SceneManager.GetActiveScene().name != "Gameplay"; i++) yield return null;
++            yield return WaitForActiveScene("Gameplay");
+             yield return null;
+             var flow = Object.FindFirstObjectByType<GameSessionController>();
+             flow.enabled = false;
+             flow.Restart(); flow.Step(3);
+             var mascot = Object.FindFirstObjectByType<MascotPresentation>();
+             var animator = mascot.GetComponent<Animator>();
+             var body = mascot.transform.Find("Body").GetComponent<SpriteRenderer>();
+             var hat = mascot.transform.Find("Hat").GetComponent<SpriteRenderer>();
+             mascot.enabled = false;
+             string[] states = { "Idle", "Idle", "Run", "Run", "Run", "Run", "Eat", "Eat", "Hurt", "Dead", "Triumph", "Triumph" };
+@@ -477,21 +477,21 @@ public IEnumerator ProductionVisualFixCaptureAtRequiredSizes()
+             yield return SceneManager.LoadSceneAsync("MainMenu");
+             for (int i = 0; i < 10; i++) yield return null;
+             yield return CaptureProduction("menu", new Vector2Int(1920, 1080),
+                 "CPS_TASK7_VISUAL_FIX_CAPTURE_DIR", "task7-visual-fix");
+             yield return CaptureProduction("menu", new Vector2Int(1280, 720),
+                 "CPS_TASK7_VISUAL_FIX_CAPTURE_DIR", "task7-visual-fix");
+ 
+             var menu = Object.FindFirstObjectByType<MainMenuUI>();
+             CreateSelectedProfile(menu, DifficultyId.Normal);
+             Assert.That(menu.StartSelectedGame(), Is.True);
+-            for (int i = 0; i < 100 && SceneManager.GetActiveScene().name != "Gameplay"; i++) yield return null;
++            yield return WaitForActiveScene("Gameplay");
+             yield return null;
+             var flow = Object.FindFirstObjectByType<GameSessionController>();
+             flow.enabled = false;
+             flow.Restart(); flow.Step(3);
+             Assert.That(flow.State, Is.EqualTo(SessionState.Playing));
+             for (int i = 0; i < 10; i++) yield return null;
+             yield return CaptureProduction("gameplay", new Vector2Int(1920, 1080),
+                 "CPS_TASK7_VISUAL_FIX_CAPTURE_DIR", "task7-visual-fix");
+             yield return CaptureProduction("gameplay", new Vector2Int(1280, 720),
+                 "CPS_TASK7_VISUAL_FIX_CAPTURE_DIR", "task7-visual-fix");
+@@ -594,20 +594,27 @@ private static void CaptureRender(string path)
+                 image.ReadPixels(new Rect(0, 0, 960, 540), 0, 0); image.Apply();
+                 File.WriteAllBytes(path, image.EncodeToPNG());
+                 Assert.That(image.GetPixel(480, 145).g, Is.GreaterThan(.7f), "Production mascot body must render cream at its lower center.");
+             }
+             finally
+             {
+                 RenderTexture.active = previous; RenderTexture.ReleaseTemporary(target); Object.DestroyImmediate(image);
+             }
+         }
+ 
++        private static IEnumerator WaitForActiveScene(string sceneName)
++        {
++            float deadline = Time.realtimeSinceStartup + 5;
++            while (SceneManager.GetActiveScene().name != sceneName && Time.realtimeSinceStartup < deadline)
++                yield return null;
++        }
++
+         private static void CreateSelectedProfile(MainMenuUI menu, DifficultyId difficulty)
+         {
+             if (AppSession.Instance.SelectedProfile == null)
+             {
+                 var field = (InputField)typeof(MainMenuUI).GetField("nicknameField", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(menu);
+                 field.text = "Demo Player";
+                 Assert.That(menu.CreateProfile(), Is.True);
+             }
+             menu.SelectDifficulty(difficulty);
+         }

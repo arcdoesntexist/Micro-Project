@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1e01247ef6488f4286b8fa814bce60a, type: 3}
+  m_Name: VersusControllerSettings
+  m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.VersusControllerSettings
+  esp32LeftEnabled: 1
+  esp32RightEnabled: 1
+  stm32LeftEnabled: 0
+  stm32RightEnabled: 1
+  stm32ReleasedRaw: 4095
+  stm32ReferenceRaw: 100
+  pressPercent: 20
+  releasePercent: 15
+  staleSeconds: 0.75

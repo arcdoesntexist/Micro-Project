@@ -1,0 +1,45 @@
+# Repository and IDE output
+/.vs/
+/.vscode/
+/.idea/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.userprefs
+.vsconfig
+
+# MCU build output
+Firmware/**/.pio/
+Firmware/**/build/
+Firmware/**/*.bin
+Firmware/**/*.elf
+Firmware/**/*.hex
+Firmware/**/*.map
+
+# Local tool scratch
+/.utmp/
+/incoming/
+playground-server.*.log
+
+# Local caches, evidence, editor scratch, and private credentials
+/verification/
+/.impeccable/
+/.superpowers/
+/.codex/
+**/.metadata/
+**/Debug/
+**/Release/
+*.launch
+*.log
+*.tmp
+*.bak
+*_save
+.DS_Store
+Thumbs.db
+.env
+.env.*
+*.pem
+*.pfx
+*.key

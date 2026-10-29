@@ -1,0 +1,162 @@
+# Review package: bbbf39c22d3f38fb71d393bb63aa42c0601c9c51..990fe9e08f3daa33da8533639b573f7d22e1e523
+
+## Commits
+990fe9e fix: select persisted profile when menu loads
+
+## Files changed
+ Assets/CPS/Tests/EditMode/SpawnPolicyTests.cs   |  5 ++--
+ Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs | 40 +++++++++++++++++++++++++
+ Assets/CPS/UI/MainMenuUI.cs                     |  2 ++
+ 3 files changed, 45 insertions(+), 2 deletions(-)
+
+## Diff
+diff --git a/Assets/CPS/Tests/EditMode/SpawnPolicyTests.cs b/Assets/CPS/Tests/EditMode/SpawnPolicyTests.cs
+index 8975956..3a566d1 100644
+--- a/Assets/CPS/Tests/EditMode/SpawnPolicyTests.cs
++++ b/Assets/CPS/Tests/EditMode/SpawnPolicyTests.cs
+@@ -58,24 +58,25 @@ public void ThousandSpawnsHaveReproducibleSafeCenteredCatchPath(DifficultyId dif
+                 Assert.That(same, Is.EqualTo(choice));
+                 Assert.That(choice.X, Is.InRange(-7.5f, 7.5f));
+                 Assert.That(choice.ArrivalTime, Is.EqualTo(now + 7 / config.speed).Within(0.001f));
+                 if (difficulty == DifficultyId.Easy) Assert.That(choice.Kind, Is.EqualTo(ObjectKind.Food));
+                 if (choice.Kind == ObjectKind.Food) counts[choice.DefinitionIndex]++;
+                 else trashCounts[choice.DefinitionIndex]++;
+                 if (difficulty == DifficultyId.Easy) Assert.That(choice.X, Is.EqualTo(new[] { -6f, 0, 6 }[accepted.Count % 3]));
+                 accepted.Add(choice);
+             }
+             Assert.That(accepted.Count, Is.EqualTo(1000));
+-            foreach (int count in counts) Assert.That(count, Is.GreaterThan(200));
++            var foods = accepted.FindAll(c => c.Kind == ObjectKind.Food);
++            foreach (int count in counts)
++                Assert.That((float)count / foods.Count, Is.EqualTo(1f / 3f).Within(0.07f));
+             if (difficulty != DifficultyId.Easy)
+                 foreach (int count in trashCounts) Assert.That(count, Is.GreaterThan(30));
+-            var foods = accepted.FindAll(c => c.Kind == ObjectKind.Food);
+             foods.Insert(0, new SpawnChoice(ObjectKind.Food, 0, 0, 0));
+             float window = 0.25f / config.speed;
+             for (int i = 1; i < foods.Count; i++)
+             {
+                 var before = foods[i - 1];
+                 var after = foods[i];
+                 float departure = Mathf.Max(before.ArrivalTime + window, after.ArrivalTime - 7 / config.speed);
+                 float travelTime = after.ArrivalTime - window - departure;
+                 Assert.That(Mathf.Abs(after.X - before.X), Is.LessThanOrEqualTo(7 * travelTime + 0.001f));
+                 foreach (var trash in accepted)
+diff --git a/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs b/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs
+index 5b3b8ad..6c67f67 100644
+--- a/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs
++++ b/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs
+@@ -75,23 +75,58 @@ public IEnumerator BootRoutesToMenuAndGuardRejectsDuplicateTransition()
+             Assert.That(menu.GetComponent<SceneNavigator>().IsTransitioning, Is.True);
+             start.onClick.Invoke();
+             Assert.That(menu.StartSelectedGame(), Is.False);
+             yield return WaitForActiveScene("Gameplay");
+             Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("Gameplay"));
+             var flow = Object.FindFirstObjectByType<GameSessionController>();
+             Assert.That(flow.ValidationError, Is.Null);
+             Assert.That(flow.State, Is.EqualTo(SessionState.Ready));
+         }
+         [UnityTest]
++        public IEnumerator FreshSessionSelectsSolePersistedProfileWhenProductionMenuLoads()
++        {
++            var values = new Dictionary<string, string>();
++            var persisted = new ProfileStore(key => values.TryGetValue(key, out var value) ? value : null,
++                (key, value) => values[key] = value, () => { });
++            persisted.Load();
++            string playerId = persisted.Create("Returning Player").PlayerId;
++            Object.DestroyImmediate(app.gameObject);
++            var root = new GameObject("Reloaded AppSession"); root.SetActive(false);
++            app = root.AddComponent<AppSession>();
++            app.Initialize(new ProfileStore(key => values.TryGetValue(key, out var value) ? value : null,
++                (key, value) => values[key] = value, () => { }));
++            root.SetActive(true);
++            Assert.That(app.Store.Profiles.Count, Is.EqualTo(1));
++            Assert.That(app.SelectedProfile, Is.Null);
++
++            yield return SceneManager.LoadSceneAsync("MainMenu"); yield return null;
++
++            var menu = Object.FindFirstObjectByType<MainMenuUI>();
++            var dropdown = (Dropdown)typeof(MainMenuUI).GetField("profileDropdown", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(menu);
++            var start = (Button)typeof(MainMenuUI).GetField("startButton", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(menu);
++            Assert.That(dropdown.value, Is.Zero);
++            Assert.That(dropdown.options.Count, Is.EqualTo(1));
++            Assert.That(dropdown.captionText.text, Does.Contain(playerId.Substring(0, 6)));
++            Assert.That(app.SelectedProfile, Is.Not.Null, "The displayed saved profile must become the session selection when the menu mounts.");
++            Assert.That(app.SelectedProfile.PlayerId, Is.EqualTo(playerId));
++            Assert.That(app.SelectedDifficulty, Is.EqualTo(DifficultyId.Easy));
++            Assert.That(start.interactable, Is.True);
++            Assert.That(menu.ValidationError, Is.Null);
++            Assert.That(app.Store.Profiles.Count, Is.EqualTo(1));
++        }
++        [UnityTest]
+         public IEnumerator AuthoredScenesCompleteAllDifficultiesAndReturnWithPersistentSelection()
+         {
+             Assert.That(Application.CanStreamedLevelBeLoaded("MainMenu"), Is.True);
++            app.Store.Create("Other Player");
++            var selected = app.Store.Create("Selected Player");
++            app.Select(selected.PlayerId, DifficultyId.Easy);
+             foreach (DifficultyId difficulty in new[] { DifficultyId.Easy, DifficultyId.Normal, DifficultyId.Hard })
+             {
+                 yield return SceneManager.LoadSceneAsync("MainMenu"); yield return null;
+                 var menu = Object.FindFirstObjectByType<MainMenuUI>();
+                 CreateSelectedProfile(menu, difficulty);
+                 Assert.That(menu.ValidationError, Is.Null);
+                 Assert.That(menu.StartSelectedGame(), Is.True);
+                 yield return WaitForActiveScene("Gameplay");
+                 yield return null;
+                 var flow = Object.FindFirstObjectByType<GameSessionController>(); flow.enabled = false;
+@@ -136,22 +171,27 @@ public IEnumerator AuthoredScenesCompleteAllDifficultiesAndReturnWithPersistentS
+                 {
+                     foreach (var item in spawner.GetComponentsInChildren<FallingObject>())
+                         item.TryResolve(item.SpawnId, ObjectOutcome.Missed);
+                     flow.Step(1);
+                 }
+                 Assert.That(flow.State, Is.EqualTo(SessionState.Dying));
+                 flow.Step(1.4f); Assert.That(flow.State, Is.EqualTo(SessionState.Results));
+                 var menuButton = (Button)typeof(ResultPanel).GetField("menuButton", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(results);
+                 menuButton.onClick.Invoke();
+                 yield return WaitForActiveScene("MainMenu");
++                Assert.That(app.SelectedProfile.PlayerId, Is.EqualTo(selected.PlayerId));
+                 Assert.That(app.SelectedDifficulty, Is.EqualTo(difficulty));
+                 var returnedMenu = Object.FindFirstObjectByType<MainMenuUI>();
++                var returnedDropdown = (Dropdown)typeof(MainMenuUI).GetField("profileDropdown", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(returnedMenu);
++                var returnedStart = (Button)typeof(MainMenuUI).GetField("startButton", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(returnedMenu);
++                Assert.That(returnedDropdown.value, Is.EqualTo(1));
++                Assert.That(returnedStart.interactable, Is.True);
+                 string selectedField = difficulty == DifficultyId.Easy ? "easyButton" :
+                     difficulty == DifficultyId.Normal ? "normalButton" : "hardButton";
+                 var selectedButton = (Button)typeof(MainMenuUI).GetField(selectedField,
+                     BindingFlags.Instance | BindingFlags.NonPublic).GetValue(returnedMenu);
+                 Assert.That(selectedButton.colors.normalColor, Is.EqualTo(Color.white));
+                 Assert.That(Object.FindObjectsByType<AppSession>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
+             }
+             Assert.That(app.SelectedProfile.PlayCount, Is.EqualTo(6));
+         }
+         [UnityTest]
+diff --git a/Assets/CPS/UI/MainMenuUI.cs b/Assets/CPS/UI/MainMenuUI.cs
+index ac819c1..4044a37 100644
+--- a/Assets/CPS/UI/MainMenuUI.cs
++++ b/Assets/CPS/UI/MainMenuUI.cs
+@@ -78,20 +78,22 @@ public void RefreshProfiles()
+             foreach (var profile in app.Store.Profiles)
+             {
+                 if (app.SelectedProfile?.PlayerId == profile.PlayerId) selected = profileIds.Count;
+                 profileIds.Add(profile.PlayerId);
+                 options.Add(new Dropdown.OptionData(profile.DisplayName + " · " + profile.PlayerId.Substring(0, Math.Min(6, profile.PlayerId.Length))));
+             }
+             if (options.Count == 0) options.Add(new Dropdown.OptionData("No profiles yet"));
+             profileDropdown.ClearOptions();
+             profileDropdown.AddOptions(options);
+             profileDropdown.SetValueWithoutNotify(selected);
++            if (app.SelectedProfile == null && profileIds.Count > 0)
++                app.Select(profileIds[selected], difficulty);
+             profileDropdown.interactable = profileIds.Count > 0;
+             if (profileDropdown.captionText != null) profileDropdown.captionText.supportRichText = false;
+             if (profileDropdown.itemText != null) profileDropdown.itemText.supportRichText = false;
+             profileDropdown.RefreshShownValue();
+             RefreshStatus();
+         }
+ 
+         public bool CreateProfile()
+         {
+             var app = AppSession.Instance;

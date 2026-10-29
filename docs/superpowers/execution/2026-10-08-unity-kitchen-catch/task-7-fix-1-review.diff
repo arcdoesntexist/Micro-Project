@@ -1,0 +1,334 @@
+# Review package: b67bdf506a7475b882ed1ff7b14d2ccb1a98e508..6b8eb1f7a4cd8d84ec85c89b20698d780e269b91
+
+## Commits
+6b8eb1f fix: loop mascot Animator clips and cover production presentation
+
+## Files changed
+ Assets/CPS/Animation/Mascot/Idle.anim              |   2 +-
+ Assets/CPS/Animation/Mascot/Run.anim               |   2 +-
+ Assets/CPS/Editor/ProductionArtSetup.cs            |   6 +-
+ .../Tests/EditMode/PresentationAuthoringTests.cs   |  28 +++++
+ Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs    | 119 +++++++++++++++++++++
+ Assets/CPS/Tests/PlayMode/PresentationTests.cs     |  14 ---
+ 6 files changed, 154 insertions(+), 17 deletions(-)
+
+## Diff
+diff --git a/Assets/CPS/Animation/Mascot/Idle.anim b/Assets/CPS/Animation/Mascot/Idle.anim
+index 4efe487..61883c1 100644
+--- a/Assets/CPS/Animation/Mascot/Idle.anim
++++ b/Assets/CPS/Animation/Mascot/Idle.anim
+@@ -193,21 +193,21 @@ AnimationClip:
+   m_AnimationClipSettings:
+     serializedVersion: 2
+     m_AdditiveReferencePoseClip: {fileID: 0}
+     m_AdditiveReferencePoseTime: 0
+     m_StartTime: 0
+     m_StopTime: 1.1
+     m_OrientationOffsetY: 0
+     m_Level: 0
+     m_CycleOffset: 0
+     m_HasAdditiveReferencePose: 0
+-    m_LoopTime: 0
++    m_LoopTime: 1
+     m_LoopBlend: 0
+     m_LoopBlendOrientation: 0
+     m_LoopBlendPositionY: 0
+     m_LoopBlendPositionXZ: 0
+     m_KeepOriginalOrientation: 0
+     m_KeepOriginalPositionY: 1
+     m_KeepOriginalPositionXZ: 0
+     m_HeightFromFeet: 0
+     m_Mirror: 0
+   m_EditorCurves:
+diff --git a/Assets/CPS/Animation/Mascot/Run.anim b/Assets/CPS/Animation/Mascot/Run.anim
+index b62bb85..f5d814a 100644
+--- a/Assets/CPS/Animation/Mascot/Run.anim
++++ b/Assets/CPS/Animation/Mascot/Run.anim
+@@ -121,21 +121,21 @@ AnimationClip:
+   m_AnimationClipSettings:
+     serializedVersion: 2
+     m_AdditiveReferencePoseClip: {fileID: 0}
+     m_AdditiveReferencePoseTime: 0
+     m_StartTime: 0
+     m_StopTime: 0.5
+     m_OrientationOffsetY: 0
+     m_Level: 0
+     m_CycleOffset: 0
+     m_HasAdditiveReferencePose: 0
+-    m_LoopTime: 0
++    m_LoopTime: 1
+     m_LoopBlend: 0
+     m_LoopBlendOrientation: 0
+     m_LoopBlendPositionY: 0
+     m_LoopBlendPositionXZ: 0
+     m_KeepOriginalOrientation: 0
+     m_KeepOriginalPositionY: 1
+     m_KeepOriginalPositionXZ: 0
+     m_HeightFromFeet: 0
+     m_Mirror: 0
+   m_EditorCurves:
+diff --git a/Assets/CPS/Editor/ProductionArtSetup.cs b/Assets/CPS/Editor/ProductionArtSetup.cs
+index 05a36d0..732179a 100644
+--- a/Assets/CPS/Editor/ProductionArtSetup.cs
++++ b/Assets/CPS/Editor/ProductionArtSetup.cs
+@@ -195,21 +195,25 @@ private static void CreateAnimations()
+         private static AnimationClip Clip(string name, int[] poses, bool loop)
+         {
+             string path = Animations + name + ".anim";
+             var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
+             if (clip == null)
+             {
+                 clip = new AnimationClip();
+                 AssetDatabase.CreateAsset(clip, path);
+             }
+             clip.frameRate = 10;
+-            clip.wrapMode = loop ? WrapMode.Loop : WrapMode.Once;
++            var serialized = new SerializedObject(clip);
++            var loopTime = serialized.FindProperty("m_AnimationClipSettings.m_LoopTime");
++            if (loopTime == null) throw new InvalidOperationException("Animator Loop Time is unavailable: " + path);
++            loopTime.boolValue = loop;
++            serialized.ApplyModifiedPropertiesWithoutUndo();
+             var sprites = new ObjectReferenceKeyframe[poses.Length + (loop ? 1 : 0)];
+             var x = new Keyframe[sprites.Length];
+             var y = new Keyframe[sprites.Length];
+             for (int i = 0; i < sprites.Length; i++)
+             {
+                 int pose = poses[i % poses.Length];
+                 float time = i / 10f;
+                 var body = Sprite(BodyPath, BodyNames[pose]);
+                 sprites[i] = new ObjectReferenceKeyframe { time = time, value = body };
+                 float hatX = pose == 9 ? -1.1f : pose == 6 ? -.42f : -.34f;
+diff --git a/Assets/CPS/Tests/EditMode/PresentationAuthoringTests.cs b/Assets/CPS/Tests/EditMode/PresentationAuthoringTests.cs
+index 7423584..762949a 100644
+--- a/Assets/CPS/Tests/EditMode/PresentationAuthoringTests.cs
++++ b/Assets/CPS/Tests/EditMode/PresentationAuthoringTests.cs
+@@ -18,20 +18,48 @@ public void ProductionSpritesHaveTightFootPivotsAndStretchablePanel()
+ 
+             Assert.That(body, Has.Length.EqualTo(12));
+             Assert.That(items, Has.Length.EqualTo(5));
+             Assert.That(ambient, Has.Length.EqualTo(3));
+             Assert.That(body[0].pivot.y, Is.LessThan(4f));
+             Assert.That(panel, Is.Not.Null);
+             Assert.That(panel.border.x, Is.GreaterThan(0));
+             Assert.That(panel.border.y, Is.GreaterThan(0));
+         }
+ 
++        [Test]
++        public void ProductionIdleAndRunClipsHaveAnimatorLoopTime()
++        {
++            foreach (string name in new[] { "Idle", "Run" })
++            {
++                var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/CPS/Animation/Mascot/" + name + ".anim");
++                Assert.That(clip, Is.Not.Null);
++                var loop = new SerializedObject(clip).FindProperty("m_AnimationClipSettings.m_LoopTime");
++                Assert.That(loop, Is.Not.Null);
++                Assert.That(loop.boolValue, Is.True, name + " must repeat in Animator");
++            }
++        }
++
++        [Test]
++        public void ProductionAmbientPrefabHasNoGameplayColliders()
++        {
++            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CPS/Prefabs/KitchenAmbient.prefab");
++            Assert.That(prefab, Is.Not.Null);
++            var instance = Object.Instantiate(prefab);
++            try
++            {
++                Assert.That(instance.GetComponent<KitchenAmbient>(), Is.Not.Null);
++                Assert.That(instance.GetComponentsInChildren<Collider2D>(true), Is.Empty);
++                Assert.That(instance.GetComponentsInChildren<Collider>(true), Is.Empty);
++            }
++            finally { Object.DestroyImmediate(instance); }
++        }
++
+         [Test]
+         public void SharedRigUsesOriginalProductionDefinitionsAndCounterHeight()
+         {
+             var rig = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CPS/Prefabs/GameplayRig.prefab");
+             var player = rig.GetComponentInChildren<PlayerController>();
+             var presentation = rig.GetComponentInChildren<MascotPresentation>();
+             var spawner = rig.GetComponent<FallingObjectSpawner>();
+             var serialized = new SerializedObject(spawner);
+ 
+             Assert.That(presentation, Is.Not.Null);
+diff --git a/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs b/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs
+index 7d29ec2..1d45976 100644
+--- a/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs
++++ b/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs
+@@ -403,20 +403,139 @@ public IEnumerator ProductionMascotClipsAndTerminalPhasesRenderInBothFacings()
+                 {
+                     mascot.StepPresentation(phase - prior);
+                     prior = phase;
+                     animator.speed = 1; animator.Update(.001f); animator.speed = 0;
+                     if (capture) yield return CaptureProduction("triumph-" + (int)(phase * 100) + "-" + direction,
+                         new Vector2Int(1280, 720), "CPS_TASK7_CAPTURE_DIR", "task7");
+                 }
+             }
+         }
+ 
++        [UnityTest]
++        public IEnumerator ProductionIdleAndRunAnimatorRepeatBeyondClipEnd()
++        {
++            yield return SceneManager.LoadSceneAsync("Gameplay");
++            yield return null;
++            var mascot = Object.FindFirstObjectByType<MascotPresentation>();
++            mascot.enabled = false;
++            var animator = mascot.GetComponent<Animator>();
++            var body = mascot.transform.Find("Body").GetComponent<SpriteRenderer>();
++
++            animator.Play("Idle", 0, 0);
++            animator.Update(0);
++            animator.Update(.91f);
++            string firstBlink = body.sprite.name;
++            animator.Update(animator.GetCurrentAnimatorClipInfo(0)[0].clip.length);
++            string nextBlink = body.sprite.name;
++
++            animator.Play("Run", 0, 0);
++            animator.Update(0);
++            animator.Update(.21f);
++            string firstRun = body.sprite.name;
++            animator.Update(animator.GetCurrentAnimatorClipInfo(0)[0].clip.length);
++            string nextRun = body.sprite.name;
++
++            Assert.That(firstBlink, Is.EqualTo("IdleBlink"));
++            Assert.That(nextBlink, Is.EqualTo("IdleBlink"), "Idle blink must recur after a full cycle");
++            Assert.That(firstRun, Is.EqualTo("RunC"));
++            Assert.That(nextRun, Is.EqualTo("RunC"), "Run must recur after a full cycle");
++        }
++
++        [UnityTest]
++        public IEnumerator ProductionMascotResetClearsDeadSpriteAndDissolve()
++        {
++            yield return SceneManager.LoadSceneAsync("Gameplay");
++            yield return null;
++            var mascot = Object.FindFirstObjectByType<MascotPresentation>();
++            mascot.enabled = false;
++            var animator = mascot.GetComponent<Animator>();
++            var body = mascot.transform.Find("Body").GetComponent<SpriteRenderer>();
++            var dissolve = mascot.GetComponentInChildren<ParticleSystem>(true);
++            Assert.That(dissolve, Is.Not.Null);
++
++            mascot.ResetPresentation();
++            mascot.PlayTerminal(EndReason.HpDepleted);
++            mascot.StepPresentation(.8f);
++            animator.Update(.001f);
++            Assert.That(animator.GetCurrentAnimatorStateInfo(0).IsName("Dead"), Is.True);
++            Assert.That(body.sprite.name, Is.EqualTo("DeadXX"));
++            Assert.That(dissolve.isPlaying, Is.True);
++
++            mascot.ResetPresentation();
++            animator.Update(.001f);
++            Assert.That(animator.GetCurrentAnimatorStateInfo(0).IsName("Idle"), Is.True);
++            Assert.That(body.sprite.name, Is.EqualTo("IdleA"));
++            Assert.That(dissolve.isPlaying, Is.False);
++            Assert.That(dissolve.IsAlive(true), Is.False);
++            Assert.That(body.color, Is.EqualTo(Color.white));
++            Assert.That(body.enabled, Is.True);
++        }
++
++        [UnityTest]
++        public IEnumerator ProductionReviewCaptureAtWideAndActivePlay()
++        {
++            yield return SceneManager.LoadSceneAsync("MainMenu");
++            yield return null;
++            yield return CaptureProduction("menu-initial", new Vector2Int(1920, 1080),
++                "CPS_TASK7_REVIEW_CAPTURE_DIR", "task7-review");
++            for (int i = 0; i < 10; i++) yield return null;
++            yield return CaptureProduction("menu-settled", new Vector2Int(1920, 1080),
++                "CPS_TASK7_REVIEW_CAPTURE_DIR", "task7-review");
++
++            var menu = Object.FindFirstObjectByType<MainMenuUI>();
++            CreateSelectedProfile(menu, DifficultyId.Normal);
++            Assert.That(menu.StartSelectedGame(), Is.True);
++            for (int i = 0; i < 100 && SceneManager.GetActiveScene().name != "Gameplay"; i++) yield return null;
++            yield return null;
++            var flow = Object.FindFirstObjectByType<GameSessionController>();
++            flow.enabled = false;
++            flow.Restart(); flow.Step(3);
++            Assert.That(flow.State, Is.EqualTo(SessionState.Playing));
++            yield return CaptureProduction("gameplay-initial", new Vector2Int(1920, 1080),
++                "CPS_TASK7_REVIEW_CAPTURE_DIR", "task7-review");
++            for (int i = 0; i < 10; i++) yield return null;
++            yield return CaptureProduction("gameplay-settled", new Vector2Int(1920, 1080),
++                "CPS_TASK7_REVIEW_CAPTURE_DIR", "task7-review");
++            yield return CaptureProduction("wide-production-full-viewport", new Vector2Int(2560, 1080),
++                "CPS_TASK7_REVIEW_CAPTURE_DIR", "task7-review");
++
++            var spawner = Object.FindFirstObjectByType<FallingObjectSpawner>();
++            var type = typeof(FallingObjectSpawner);
++            var prefab = (FallingObject)type.GetField("prefab", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(spawner);
++            var foods = (FallingObjectDefinition[])type.GetField("foodDefinitions", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(spawner);
++            var trash = (FallingObjectDefinition[])type.GetField("trashDefinitions", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(spawner);
++            Assert.That(foods.Length, Is.EqualTo(3));
++            Assert.That(trash.Length, Is.EqualTo(2));
++            var definitions = new[] { foods[0], foods[1], foods[2], trash[0], trash[1] };
++            var positions = new[] { new Vector2(-5.3f, 2.3f), new Vector2(-2.5f, .8f),
++                new Vector2(.7f, 1.7f), new Vector2(3.1f, -1.2f), new Vector2(5.1f, .3f) };
++            for (int i = 0; i < definitions.Length; i++)
++            {
++                var item = Object.Instantiate(prefab, spawner.transform);
++                item.Spawn(200001 + i, definitions[i], positions[i], 1);
++                Assert.That(item.GetComponent<SpriteRenderer>().sprite, Is.SameAs(definitions[i].sprite));
++                TestContext.WriteLine("Diagnostic item " + definitions[i].name + " at " + positions[i]);
++            }
++            for (int i = 0; i < 12; i++)
++                flow.Model.Resolve(300001 + i, ObjectKind.Food, ObjectOutcome.Caught, foods[0].points);
++            var ui = Object.FindFirstObjectByType<GameplayUI>();
++            ui.Refresh();
++            var rank = (Text)typeof(GameplayUI).GetField("rank", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ui);
++            var callout = (Text)typeof(GameplayUI).GetField("rankCallout", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ui);
++            Assert.That(rank.text, Is.EqualTo("RANK SSS"));
++            Assert.That(callout.text, Does.Contain("Supreme Chef!"));
++            Assert.That(callout.transform.parent.gameObject.activeInHierarchy, Is.True);
++            TestContext.WriteLine("Deterministic diagnostic composition: five production FallingObjects and 12 resolved food catches for SSS; not an organic play sequence.");
++            yield return CaptureProduction("diagnostic-active-sss-five-items", new Vector2Int(1920, 1080),
++                "CPS_TASK7_REVIEW_CAPTURE_DIR", "task7-review");
++        }
++
+         private static IEnumerator CaptureProduction(string label, Vector2Int size,
+             string directoryVariable = "CPS_TASK6_CAPTURE_DIR", string prefix = "task6")
+         {
+             var camera = Camera.main;
+             var viewport = camera.GetComponent<GameplayViewport>();
+             var canvas = Object.FindFirstObjectByType<Canvas>();
+             var target = new RenderTexture(size.x, size.y, 24);
+             var priorTarget = camera.targetTexture;
+             var priorActive = RenderTexture.active;
+             bool priorEnabled = viewport.enabled;
+diff --git a/Assets/CPS/Tests/PlayMode/PresentationTests.cs b/Assets/CPS/Tests/PlayMode/PresentationTests.cs
+index 6efd3aa..91e69a9 100644
+--- a/Assets/CPS/Tests/PlayMode/PresentationTests.cs
++++ b/Assets/CPS/Tests/PlayMode/PresentationTests.cs
+@@ -72,32 +72,18 @@ public void ResetRemovesDeathTintAndDissolveAndReturnsToIdle()
+ 
+                 Assert.That(body.color, Is.EqualTo(Color.white));
+                 Assert.That(hat.color, Is.EqualTo(Color.white));
+                 Assert.That(body.enabled, Is.True);
+                 Assert.That(hat.enabled, Is.True);
+                 Assert.That(body.flipX, Is.False);
+             }
+             finally { Object.DestroyImmediate(root); }
+         }
+ 
+-        [Test]
+-        public void AmbientPropsNeverAcquireGameplayColliders()
+-        {
+-            var root = new GameObject("Ambient");
+-            try
+-            {
+-                var ambient = root.AddComponent<KitchenAmbient>();
+-                ambient.StepAmbient(1f);
+-                Assert.That(root.GetComponentsInChildren<Collider2D>(true), Is.Empty);
+-                Assert.That(root.GetComponentsInChildren<Collider>(true), Is.Empty);
+-            }
+-            finally { Object.DestroyImmediate(root); }
+-        }
+-
+         private static void Assign(object target, string name, Object value)
+         {
+             var field = target.GetType().GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+             Assert.That(field, Is.Not.Null);
+             field.SetValue(target, value);
+         }
+     }
+ }

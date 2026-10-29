@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bdee4fddc3a59de4a9854eab44bda1c8, type: 3}
+  m_Name: ControllerSettings
+  m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.ControllerSettings
+  fsrLeftPress: 20
+  fsrLeftRelease: 15
+  fsrRightPress: 20
+  fsrRightRelease: 15
+  loadLeftPressN: 0.5
+  loadLeftReleaseN: 0.3
+  loadRightPressN: 0.5
+  loadRightReleaseN: 0.3
+  staleSeconds: 0.75

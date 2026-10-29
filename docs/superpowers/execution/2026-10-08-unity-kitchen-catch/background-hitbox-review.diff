@@ -1,0 +1,242 @@
+# Review package: 990fe9e08f3daa33da8533639b573f7d22e1e523..922c2ef
+
+## Commits
+922c2ef art: clear hanging utensils from kitchen backdrop
+c365ec1 Make player catch zone more forgiving
+
+## Files changed
+ Assets/CPS/Art/Kitchen/kitchen-background-v1.png        |  4 ++--
+ Assets/CPS/Editor/ProductionArtSetup.cs                 | 10 ++++++++++
+ Assets/CPS/Input/PlayerController.cs                    |  2 +-
+ Assets/CPS/Prefabs/GameplayRig.prefab                   |  2 +-
+ Assets/CPS/Tests/EditMode/PresentationAuthoringTests.cs |  1 +
+ Assets/CPS/Tests/PlayMode/FallingObjectTests.cs         | 10 +++++++++-
+ Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs        |  2 +-
+ 7 files changed, 25 insertions(+), 6 deletions(-)
+
+## Diff
+diff --git a/Assets/CPS/Art/Kitchen/kitchen-background-v1.png b/Assets/CPS/Art/Kitchen/kitchen-background-v1.png
+index cbf4982..4e91f1b 100644
+--- a/Assets/CPS/Art/Kitchen/kitchen-background-v1.png
++++ b/Assets/CPS/Art/Kitchen/kitchen-background-v1.png
+@@ -1,3 +1,3 @@
+ version https://git-lfs.github.com/spec/v1
+-oid sha256:fac398c28ffab2b26dbb511fefe4e1e506ec1d8b5a7227a2e1b10e385ace3731
+-size 1658473
++oid sha256:448bc5cb75baf0f92b8efa8913e817b3a4f34b0e6eb9fe70d2fce4eaa501e291
++size 1669311
+diff --git a/Assets/CPS/Editor/ProductionArtSetup.cs b/Assets/CPS/Editor/ProductionArtSetup.cs
+index dd45495..085bcfd 100644
+--- a/Assets/CPS/Editor/ProductionArtSetup.cs
++++ b/Assets/CPS/Editor/ProductionArtSetup.cs
+@@ -381,20 +381,21 @@ private static void UpdateSharedRig()
+             var root = PrefabUtility.LoadPrefabContents(path);
+             try
+             {
+                 var player = root.GetComponentInChildren<PlayerController>();
+                 if (player == null) throw new InvalidOperationException("Shared GameplayRig player is missing.");
+                 player.name = "MascotPlayer";
+                 player.transform.localPosition = new Vector3(0, -2.5f, 0);
+                 var oldSprite = player.GetComponent<SpriteRenderer>();
+                 if (oldSprite != null) Object.DestroyImmediate(oldSprite);
+                 SetFloat(player, "mascotHalfWidth", .9f);
++                SetVector3(player, "catchZoneHalfExtents", new Vector3(1f, .4f, .1f));
+                 var presentation = player.GetComponentInChildren<MascotPresentation>();
+                 if (presentation == null)
+                 {
+                     var mascot = AssetDatabase.LoadAssetAtPath<GameObject>(Prefabs + "Mascot.prefab");
+                     var instance = (GameObject)PrefabUtility.InstantiatePrefab(mascot, player.transform);
+                     instance.transform.localPosition = Vector3.zero;
+                     presentation = instance.GetComponent<MascotPresentation>();
+                 }
+                 Set(root.GetComponent<GameSessionController>(), "presentation", presentation);
+                 var spawner = root.GetComponent<FallingObjectSpawner>();
+@@ -616,16 +617,25 @@ private static void SetArray(Object target, string property, Object[] values)
+ 
+         private static void SetFloat(Object target, string property, float value)
+         {
+             var serialized = new SerializedObject(target);
+             var field = serialized.FindProperty(property);
+             if (field == null) throw new InvalidOperationException("Missing serialized number: " + target + "." + property);
+             field.floatValue = value;
+             serialized.ApplyModifiedPropertiesWithoutUndo();
+         }
+ 
++        private static void SetVector3(Object target, string property, Vector3 value)
++        {
++            var serialized = new SerializedObject(target);
++            var field = serialized.FindProperty(property);
++            if (field == null) throw new InvalidOperationException("Missing serialized vector: " + target + "." + property);
++            field.vector3Value = value;
++            serialized.ApplyModifiedPropertiesWithoutUndo();
++        }
++
+         private static void EnsureFolder(string parent, string name)
+         {
+             if (!AssetDatabase.IsValidFolder(parent + "/" + name)) AssetDatabase.CreateFolder(parent, name);
+         }
+     }
+ }
+diff --git a/Assets/CPS/Input/PlayerController.cs b/Assets/CPS/Input/PlayerController.cs
+index 20b6156..fc165ab 100644
+--- a/Assets/CPS/Input/PlayerController.cs
++++ b/Assets/CPS/Input/PlayerController.cs
+@@ -2,21 +2,21 @@
+ 
+ namespace CPS.KitchenCatch
+ {
+     public sealed class PlayerController : MonoBehaviour
+     {
+         private const float MoveSpeed = 7;
+         private const float FieldHalfWidth = 8;
+ 
+         [SerializeField, Min(0)] private float mascotHalfWidth = 0.5f;
+         [SerializeField] private Vector3 catchZoneOffset = new Vector3(0, 0.5f, 0);
+-        [SerializeField] private Vector3 catchZoneHalfExtents = new Vector3(0.75f, 0.25f, 0.1f);
++        [SerializeField] private Vector3 catchZoneHalfExtents = new Vector3(1f, 0.4f, 0.1f);
+ 
+         public int MovementDirection { get; private set; }
+         private float MovementLimit => FieldHalfWidth - Mathf.Clamp(mascotHalfWidth, 0, FieldHalfWidth);
+         public Vector2 ReachableCatchCenterRange =>
+             new Vector2(catchZoneOffset.x - MovementLimit, catchZoneOffset.x + MovementLimit);
+         public Bounds CatchZone => new Bounds(transform.position + catchZoneOffset,
+             new Vector3(Mathf.Abs(catchZoneHalfExtents.x), Mathf.Abs(catchZoneHalfExtents.y),
+                 Mathf.Abs(catchZoneHalfExtents.z)) * 2);
+ 
+         public void Step(InputSnapshot input, float dt)
+diff --git a/Assets/CPS/Prefabs/GameplayRig.prefab b/Assets/CPS/Prefabs/GameplayRig.prefab
+index 8e6803c..e8939ea 100644
+--- a/Assets/CPS/Prefabs/GameplayRig.prefab
++++ b/Assets/CPS/Prefabs/GameplayRig.prefab
+@@ -143,21 +143,21 @@ MonoBehaviour:
+   m_PrefabInstance: {fileID: 0}
+   m_PrefabAsset: {fileID: 0}
+   m_GameObject: {fileID: 8982709089889783802}
+   m_Enabled: 1
+   m_EditorHideFlags: 0
+   m_Script: {fileID: 11500000, guid: 3d802bef0e28b874eaf2f8bf952ecea6, type: 3}
+   m_Name:
+   m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.PlayerController
+   mascotHalfWidth: 0.9
+   catchZoneOffset: {x: 0, y: 0.5, z: 0}
+-  catchZoneHalfExtents: {x: 0.75, y: 0.25, z: 0.1}
++  catchZoneHalfExtents: {x: 1, y: 0.4, z: 0.1}
+ --- !u!1001 &3681288220277001031
+ PrefabInstance:
+   m_ObjectHideFlags: 0
+   serializedVersion: 2
+   m_Modification:
+     serializedVersion: 3
+     m_TransformParent: {fileID: 5794027457939439406}
+     m_Modifications:
+     - target: {fileID: 4314544270549235514, guid: 1f1054b2668f17e41874bf8a92704390, type: 3}
+       propertyPath: m_Name
+diff --git a/Assets/CPS/Tests/EditMode/PresentationAuthoringTests.cs b/Assets/CPS/Tests/EditMode/PresentationAuthoringTests.cs
+index 186d76b..b8a670f 100644
+--- a/Assets/CPS/Tests/EditMode/PresentationAuthoringTests.cs
++++ b/Assets/CPS/Tests/EditMode/PresentationAuthoringTests.cs
+@@ -73,20 +73,21 @@ public void SharedRigUsesOriginalProductionDefinitionsAndCounterHeight()
+             var player = rig.GetComponentInChildren<PlayerController>();
+             var presentation = rig.GetComponentInChildren<MascotPresentation>();
+             var spawner = rig.GetComponent<FallingObjectSpawner>();
+             var serialized = new SerializedObject(spawner);
+ 
+             Assert.That(presentation, Is.Not.Null);
+             Assert.That(player.transform.position.y, Is.EqualTo(-2.5f).Within(.1f));
+             Assert.That(player.ReachableCatchCenterRange.x, Is.LessThanOrEqualTo(-6f));
+             Assert.That(player.ReachableCatchCenterRange.y, Is.GreaterThanOrEqualTo(6f));
+             Assert.That(player.CatchZone.center.x, Is.EqualTo(0));
++            Assert.That(player.CatchZone.size, Is.EqualTo(new Vector3(2f, .8f, .2f)));
+             string[] names = { "Apple", "Bread", "Cake" };
+             var foods = serialized.FindProperty("foodDefinitions");
+             for (int i = 0; i < names.Length; i++)
+             {
+                 var definition = AssetDatabase.LoadAssetAtPath<FallingObjectDefinition>("Assets/CPS/Config/" + names[i] + ".asset");
+                 Assert.That(foods.GetArrayElementAtIndex(i).objectReferenceValue, Is.SameAs(definition));
+                 Assert.That(definition.sprite, Is.Not.Null);
+                 Assert.That(AssetDatabase.GetAssetPath(definition.sprite), Does.StartWith("Assets/CPS/Art/Items/"));
+             }
+             names = new[] { "Can", "BananaPeel" };
+diff --git a/Assets/CPS/Tests/PlayMode/FallingObjectTests.cs b/Assets/CPS/Tests/PlayMode/FallingObjectTests.cs
+index 53d07f3..f426a09 100644
+--- a/Assets/CPS/Tests/PlayMode/FallingObjectTests.cs
++++ b/Assets/CPS/Tests/PlayMode/FallingObjectTests.cs
+@@ -26,20 +26,28 @@ public void SweptCrossingCatchesExactlyOnceBeforeMiss(float dt)
+             int reports = 0;
+             ObjectOutcome? outcome = null;
+             falling.Spawn(1, food, new Vector2(0, 0.5f), 30);
+             falling.BindResolution((id, definition, result) => { reports++; outcome = result; });
+             falling.Step(dt, new Bounds(Vector3.zero, new Vector3(1.5f, 0.5f, 0.2f)));
+             falling.Step(dt, new Bounds(Vector3.zero, new Vector3(1.5f, 0.5f, 0.2f)));
+             Assert.That(outcome, Is.EqualTo(ObjectOutcome.Caught));
+             Assert.That(reports, Is.EqualTo(1));
+         }
+ 
++        [Test]
++        public void DefaultPlayerCatchZoneUsesApprovedForgivingSize()
++        {
++            var player = Own(new GameObject("Player")).AddComponent<PlayerController>();
++
++            Assert.That(player.CatchZone.size, Is.EqualTo(new Vector3(2f, .8f, .2f)));
++        }
++
+         [Test]
+         public void CrossingOutsideCatchWidthReportsOneMiss()
+         {
+             var outcomes = new List<ObjectOutcome>();
+             falling.Spawn(1, food, new Vector2(2, 1), 3);
+             falling.BindResolution((id, definition, result) => outcomes.Add(result));
+             falling.Step(1, new Bounds(Vector3.zero, new Vector3(1.5f, 0.5f, 0.2f)));
+             falling.Step(1, new Bounds(Vector3.zero, new Vector3(1.5f, 0.5f, 0.2f)));
+             Assert.That(outcomes, Is.EqualTo(new[] { ObjectOutcome.Missed }));
+         }
+@@ -135,21 +143,21 @@ public void ActiveObjectsStayBoundedAndClearDuringOutcomeCallbackIsSafe()
+             Assert.That(spawner.ActiveCount, Is.Zero);
+         }
+ 
+         [Test]
+         public void WiderMascotRejectsImpossibleAuthoredLaneBeforeBegin()
+         {
+             var spawner = CreateSpawner(out var config, out var player);
+             Set(player, "mascotHalfWidth", 3f);
+             player.Step(new InputSnapshot(default, new HandInput(true, 1, true, null), "Test"), 10);
+             Assert.That(player.transform.position.x, Is.EqualTo(5));
+-            Assert.That(player.CatchZone.max.x, Is.EqualTo(5.75f));
++            Assert.That(player.CatchZone.max.x, Is.EqualTo(6f));
+             Assert.That(spawner.GetValidationError(config), Is.Not.Null);
+             Assert.That(spawner.GetValidationError(config), Does.Contain("lane"));
+             Assert.Throws<System.InvalidOperationException>(() => spawner.Begin(config, (id, definition, outcome) => { }));
+             Assert.That(spawner.ActiveCount, Is.Zero);
+         }
+ 
+         [Test]
+         public void LaneInsideCatcherCoverageButOutsideCenteredPathIsRejected()
+         {
+             var spawner = CreateSpawner(out var config, out var player);
+diff --git a/Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs b/Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs
+index 966625d..16046e1 100644
+--- a/Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs
++++ b/Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs
+@@ -116,21 +116,21 @@ public void MovementClampsVisibleWidthAndResetPreservesOtherAxes()
+             Assert.That(player.transform.position, Is.EqualTo(new Vector3(0, -3, 2)));
+             Assert.That(player.MovementDirection, Is.Zero);
+         }
+ 
+         [Test]
+         public void CatchZoneTracksPositionWithoutFacingOrScaleChanges()
+         {
+             player.transform.position = new Vector3(2, -3, 0);
+             var before = player.CatchZone;
+             Assert.That(before.center, Is.EqualTo(new Vector3(2, -2.5f, 0)));
+-            Assert.That(before.size, Is.EqualTo(new Vector3(1.5f, 0.5f, 0.2f)));
++            Assert.That(before.size, Is.EqualTo(new Vector3(2f, 0.8f, 0.2f)));
+             player.transform.localScale = new Vector3(-2, 3, 1);
+             player.transform.rotation = Quaternion.Euler(0, 0, 20);
+             Assert.That(player.CatchZone, Is.EqualTo(before));
+             player.transform.position += Vector3.right;
+             Assert.That(player.CatchZone.center.x, Is.EqualTo(3));
+         }
+ 
+         [TestCase(0.5f, 7.5f)] [TestCase(3f, 5f)] [TestCase(9f, 0f)] [TestCase(-1f, 8f)]
+         public void ReachableCatcherCenterRangeMatchesConfiguredClampsAndOffset(float width, float limit)
+         {

@@ -1,0 +1,109 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1001}
+  - component: {fileID: 1002}
+  m_Layer: 0
+  m_Name: Versus Match
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1001
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34172e0bd1144982b50de938c5d2ef02, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.VersusMatchController
+  challenge:
+    tierDurationSeconds: 20
+    maxTier: 8
+    initialIntervalSeconds: 1.2
+    intervalDecreasePerTier: 0.08
+    initialTrashProbability: 0.2
+    trashIncreasePerTier: 0.05
+    initialFallSpeed: 5.5
+    fallSpeedIncreasePerTier: 0.35
+  font: {fileID: 12800000, guid: 5ea627e0d4ad1284a9989b74ea542633, type: 3}
+  kitchen: {fileID: 21300000, guid: ab2548a4b3e00d246819b579047269a0, type: 3}
+  frame: {fileID: 21300000, guid: 236f5e26fb4af1a4cb15c15424813feb, type: 3}
+  orangeButton: {fileID: -225395580325087563, guid: 1bfeb96ee8854144cb58fa113f4d223b, type: 3}
+  cocoaButton: {fileID: -7398379266875560071, guid: 1bfeb96ee8854144cb58fa113f4d223b, type: 3}
+  inputPlate: {fileID: 1913924746455327715, guid: 1bfeb96ee8854144cb58fa113f4d223b, type: 3}
+  bodyFrames:
+  - {fileID: -8442112274048331848, guid: 5413a874e58c86a43b1a325f07937511, type: 3}
+  - {fileID: -1821901497363150241, guid: 5413a874e58c86a43b1a325f07937511, type: 3}
+  - {fileID: 6337296105297539874, guid: 5413a874e58c86a43b1a325f07937511, type: 3}
+  - {fileID: -1314043762705816177, guid: 5413a874e58c86a43b1a325f07937511, type: 3}
+  - {fileID: -4815716690849988542, guid: 5413a874e58c86a43b1a325f07937511, type: 3}
+  - {fileID: 2620530548627789877, guid: 5413a874e58c86a43b1a325f07937511, type: 3}
+  - {fileID: 4259448317700732869, guid: 5413a874e58c86a43b1a325f07937511, type: 3}
+  - {fileID: -6678854413950835281, guid: 5413a874e58c86a43b1a325f07937511, type: 3}
+  - {fileID: 702221926039827947, guid: 5413a874e58c86a43b1a325f07937511, type: 3}
+  - {fileID: 1806238277563556728, guid: 5413a874e58c86a43b1a325f07937511, type: 3}
+  hats:
+  - Color: {r: 0.96078431, g: 0.48627451, b: 0.19607843, a: 1}
+    Right: {fileID: 5597036825469838565, guid: 6f098ef268bbfcb4c9c56ee77fe0c85a, type: 3}
+    Left: {fileID: 1317148021, guid: e7fc1122f55b7c54d88cb9f892899790, type: 3}
+  - Color: {r: 0.23529412, g: 0.47058824, b: 0.84705882, a: 1}
+    Right: {fileID: -1587322802, guid: 0a58b1b7c3a005c42899ea9b20ca875d, type: 3}
+    Left: {fileID: 2092997806, guid: 0a58b1b7c3a005c42899ea9b20ca875d, type: 3}
+  - Color: {r: 0.40784314, g: 0.65882353, b: 0.19607843, a: 1}
+    Right: {fileID: 1915685326, guid: 9ed505628458b9146b15e3373be4bd73, type: 3}
+    Left: {fileID: 1648796915, guid: 9ed505628458b9146b15e3373be4bd73, type: 3}
+  - Color: {r: 0.60784314, g: 0.34901961, b: 0.71372549, a: 1}
+    Right: {fileID: -1518344866, guid: 8302ef227f60e00409aba13a95ff80b5, type: 3}
+    Left: {fileID: 1790373696, guid: 8302ef227f60e00409aba13a95ff80b5, type: 3}
+  - Color: {r: 0.90196078, g: 0.70588235, b: 0.13333333, a: 1}
+    Right: {fileID: 1972900073, guid: 751e5be96897cd245b912602e16cd1ad, type: 3}
+    Left: {fileID: 188588724, guid: 751e5be96897cd245b912602e16cd1ad, type: 3}
+  - Color: {r: 0.85098039, g: 0.29019608, b: 0.39215686, a: 1}
+    Right: {fileID: 657969890, guid: 8fbc18dd74beef14eba839f8c648b3cb, type: 3}
+    Left: {fileID: -408738445, guid: 8fbc18dd74beef14eba839f8c648b3cb, type: 3}
+  decorations:
+  - {fileID: -5844409634830938361, guid: 44cc3273271fbc441bf1937ac841d38c, type: 3}
+  - {fileID: 4206710989054381637, guid: 44cc3273271fbc441bf1937ac841d38c, type: 3}
+  - {fileID: 2903726523032076759, guid: 44cc3273271fbc441bf1937ac841d38c, type: 3}
+  definitions:
+  - {fileID: 11400000, guid: bec0dcb772f71b040ab00074e5356e62, type: 2}
+  - {fileID: 11400000, guid: 445e6edbf2e6ee244a18e0f5b734b626, type: 2}
+  - {fileID: 11400000, guid: 9a3305c71b27f7447a33dcd8a6903210, type: 2}
+  - {fileID: 11400000, guid: 91e1516b3af72a740b171e28ba0bc713, type: 2}
+  - {fileID: 11400000, guid: 8e4a053b9a253eb4b9d8e35ed67b8c8c, type: 2}
+  settingsPrefab: {fileID: 3879890250217855608, guid: 03c7dfc120c386345ac7bc240af68821, type: 3}
+  versusMusic: {fileID: 0}
+  resultEndpoint: https://script.google.com/macros/s/AKfycbxmUwlzaqkbO04UAfhy2CxkpmMR5fEXioOeCoTGxHrwuX4V6VCA9zC3RJ_YQlq-gq8h/exec
+--- !u!1660057539 &9223372036854775807
+SceneRoots:
+  m_ObjectHideFlags: 0
+  m_Roots:
+  - {fileID: 1001}

@@ -1,0 +1,1332 @@
+# Review package: 6b8eb1f7a4cd8d84ec85c89b20698d780e269b91..9f72081bdff5a1990596274e9f87e1b390713264
+
+## Commits
+9f72081 fix: sharpen hud and restore rank identity
+
+## Files changed
+ Assets/CPS/Art/Items/items-atlas-v1.png.meta       |   4 +-
+ Assets/CPS/Editor/ProductionArtSetup.cs            |  86 ++++-
+ Assets/CPS/Prefabs/GameplayCanvas.prefab           | 369 ++++++++++++++++++++-
+ .../Tests/EditMode/PresentationAuthoringTests.cs   |  35 ++
+ Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs    |  28 +-
+ Assets/CPS/Tests/PlayMode/GameUITests.cs           |  48 +++
+ Assets/CPS/UI/GameplayUI.cs                        |  42 ++-
+ Assets/CPS/UI/GameplayViewport.cs                  |   1 +
+ 8 files changed, 582 insertions(+), 31 deletions(-)
+
+## Diff
+diff --git a/Assets/CPS/Art/Items/items-atlas-v1.png.meta b/Assets/CPS/Art/Items/items-atlas-v1.png.meta
+index 45fa48d..416b799 100644
+--- a/Assets/CPS/Art/Items/items-atlas-v1.png.meta
++++ b/Assets/CPS/Art/Items/items-atlas-v1.png.meta
+@@ -567,24 +567,24 @@ TextureImporter:
+       vertices: []
+       indices:
+       edges: []
+       weights: []
+     - serializedVersion: 2
+       name: BananaPeel
+       rect:
+         serializedVersion: 2
+         x: 569
+         y: 74
+-        width: 455
++        width: 484
+         height: 369
+       alignment: 9
+-      pivot: {x: 0.5, y: 0.5}
++      pivot: {x: 0.47004133, y: 0.5}
+       border: {x: 0, y: 0, z: 0, w: 0}
+       customData:
+       outline: []
+       physicsShape: []
+       tessellationDetail: -1
+       bones: []
+       spriteID: 2afb904c6b8d9dcd0800000000000000
+       internalID: -2532755035934572638
+       vertices: []
+       indices:
+diff --git a/Assets/CPS/Editor/ProductionArtSetup.cs b/Assets/CPS/Editor/ProductionArtSetup.cs
+index 732179a..dd45495 100644
+--- a/Assets/CPS/Editor/ProductionArtSetup.cs
++++ b/Assets/CPS/Editor/ProductionArtSetup.cs
+@@ -61,25 +61,33 @@ private static void ImportGrid(string path, int columns, int rows, float pixelsP
+         {
+             var texture = PrepareTexture(path, pixelsPerUnit, true);
+             var pixels = texture.GetPixels32();
+             int cellWidth = texture.width / columns;
+             int cellHeight = texture.height / rows;
+             var slices = new List<SpriteRect>();
+             for (int i = 0; i < names.Length; i++)
+             {
+                 int x = i % columns * cellWidth;
+                 int y = texture.height - (i / columns + 1) * cellHeight;
+-                var rect = AlphaRect(pixels, texture.width, new RectInt(x, y, cellWidth, cellHeight));
++                var nominalRect = AlphaRect(pixels, texture.width, new RectInt(x, y, cellWidth, cellHeight));
++                bool extendedPeel = path == ItemPath && names[i] == "BananaPeel";
++                var rect = extendedPeel
++                    ? AlphaRect(pixels, texture.width, new RectInt(x, y, cellWidth + 29, cellHeight))
++                    : nominalRect;
++                var pivot = feetPivot ? new Vector2(.5f, 0) : new Vector2(.5f, .5f);
++                if (extendedPeel)
++                    pivot = new Vector2((nominalRect.center.x - rect.x) / rect.width,
++                        (nominalRect.center.y - rect.y) / rect.height);
+                 slices.Add(new SpriteRect
+                 {
+                     name = names[i], rect = rect, alignment = SpriteAlignment.Custom,
+-                    pivot = feetPivot ? new Vector2(.5f, 0) : new Vector2(.5f, .5f)
++                    pivot = pivot
+                 });
+                 Debug.Log($"Task7 slice {names[i]} rect={rect} pivot={(feetPivot ? "foot" : "center")}");
+             }
+             FinishImport(path, slices.ToArray());
+         }
+ 
+         private static void ImportSingleCropped(string path, string name, float pixelsPerUnit, Vector4 border)
+         {
+             var texture = PrepareTexture(path, pixelsPerUnit, true);
+             var rect = AlphaRect(texture.GetPixels32(), texture.width, new RectInt(0, 0, texture.width, texture.height));
+@@ -435,27 +443,64 @@ private static void UpdateUI()
+                 backdrop.color = Color.clear;
+                 PrefabUtility.SaveAsPrefabAsset(menu, path);
+             }
+             finally { PrefabUtility.UnloadPrefabContents(menu); }
+ 
+             path = Prefabs + "GameplayCanvas.prefab";
+             var gameplay = PrefabUtility.LoadPrefabContents(path);
+             try
+             {
+                 gameplay.GetComponent<Canvas>().sortingOrder = 100;
++                var ui = gameplay.GetComponent<GameplayUI>();
+                 foreach (string name in new[] { "Player", "Score" })
+                 {
+                     var image = gameplay.transform.Find(name).GetComponent<Image>();
+                     image.sprite = null;
+                     image.type = Image.Type.Simple;
+                     image.color = new Color(.99f, .91f, .73f);
+                 }
++                var rankBadge = gameplay.transform.Find("Rank badge");
++                var rankName = (Text)new SerializedObject(ui).FindProperty("rank").objectReferenceValue;
++                rankName.gameObject.name = "Rank name";
++                SetRect(rankName.rectTransform, new Vector2(31, 0), new Vector2(116, 58));
++                rankName.fontSize = 17;
++                rankName.fontStyle = FontStyle.Bold;
++                rankName.alignment = TextAnchor.MiddleCenter;
++                rankName.color = new Color(1, .96f, .82f);
++                var nameOutline = rankName.GetComponent<Outline>() ?? rankName.gameObject.AddComponent<Outline>();
++                nameOutline.effectColor = new Color(.22f, .10f, .07f);
++                nameOutline.effectDistance = new Vector2(1, -1);
++                var rankLetter = EnsureText(rankBadge, "Rank letter");
++                SetRect(rankLetter.rectTransform, new Vector2(-59, 0), new Vector2(72, 62));
++                rankLetter.fontSize = 44;
++                rankLetter.fontStyle = FontStyle.Bold;
++                rankLetter.alignment = TextAnchor.MiddleCenter;
++                rankLetter.color = new Color(1, .96f, .82f);
++                var outline = rankLetter.GetComponent<Outline>() ?? rankLetter.gameObject.AddComponent<Outline>();
++                outline.effectColor = new Color(.22f, .10f, .07f);
++                outline.effectDistance = new Vector2(2, -2);
++                var accents = new Image[3];
++                for (int i = 0; i < accents.Length; i++)
++                {
++                    accents[i] = EnsureImage(rankBadge, "Rank accent " + (i + 1));
++                    SetRect(accents[i].rectTransform, new Vector2(-70 + i * 23, -26), new Vector2(36, 7));
++                    accents[i].rectTransform.localRotation = Quaternion.Euler(0, 0, -12);
++                    accents[i].color = new Color(1, .91f, .52f);
++                    accents[i].raycastTarget = false;
++                    accents[i].transform.SetSiblingIndex(i);
++                }
++                rankLetter.transform.SetAsLastSibling();
++                rankName.transform.SetAsLastSibling();
++                Set(ui, "rankLetter", rankLetter);
++                Set(ui, "rankPlate", rankBadge.GetComponent<Image>());
++                Set(ui, "rankCalloutPlate", gameplay.transform.Find("Rank callout").GetComponent<Image>());
++                SetArray(ui, "rankAccents", accents.Cast<Object>().ToArray());
+                 gameplay.transform.Find("Pause overlay/RESUME").GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -70);
+                 PrefabUtility.SaveAsPrefabAsset(gameplay, path);
+             }
+             finally { PrefabUtility.UnloadPrefabContents(gameplay); }
+ 
+             path = Prefabs + "ResultPanel.prefab";
+             var result = PrefabUtility.LoadPrefabContents(path);
+             try
+             {
+                 foreach (string name in new[] { "RESTART", "MAIN MENU" })
+@@ -468,20 +513,57 @@ private static void UpdateUI()
+             }
+             finally { PrefabUtility.UnloadPrefabContents(result); }
+         }
+ 
+         private static void SetHeight(Transform panel, float height)
+         {
+             var rect = panel.GetComponent<RectTransform>();
+             rect.sizeDelta = new Vector2(rect.sizeDelta.x, height);
+         }
+ 
++        private static Text EnsureText(Transform parent, string name)
++        {
++            var child = parent.Find(name);
++            if (child == null)
++            {
++                var go = new GameObject(name, typeof(RectTransform), typeof(Text));
++                go.transform.SetParent(parent, false);
++                child = go.transform;
++            }
++            var text = child.GetComponent<Text>();
++            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
++            text.supportRichText = false;
++            text.raycastTarget = false;
++            return text;
++        }
++
++        private static Image EnsureImage(Transform parent, string name)
++        {
++            var child = parent.Find(name);
++            if (child == null)
++            {
++                var go = new GameObject(name, typeof(RectTransform), typeof(Image));
++                go.transform.SetParent(parent, false);
++                child = go.transform;
++            }
++            return child.GetComponent<Image>();
++        }
++
++        private static void SetRect(RectTransform rect, Vector2 position, Vector2 size)
++        {
++            rect.anchorMin = new Vector2(.5f, .5f);
++            rect.anchorMax = new Vector2(.5f, .5f);
++            rect.pivot = new Vector2(.5f, .5f);
++            rect.anchoredPosition = position;
++            rect.sizeDelta = size;
++        }
++
+         private static void PanelPrefab(string path, Sprite sprite, params string[] names)
+         {
+             var root = PrefabUtility.LoadPrefabContents(path);
+             try
+             {
+                 foreach (string name in names)
+                 {
+                     var child = root.transform.Find(name);
+                     if (child == null) throw new InvalidOperationException("Missing authored UI panel: " + path + "/" + name);
+                     var image = child.GetComponent<Image>();
+diff --git a/Assets/CPS/Prefabs/GameplayCanvas.prefab b/Assets/CPS/Prefabs/GameplayCanvas.prefab
+index 0588428..2ccb8d9 100644
+--- a/Assets/CPS/Prefabs/GameplayCanvas.prefab
++++ b/Assets/CPS/Prefabs/GameplayCanvas.prefab
+@@ -23,20 +23,24 @@ RectTransform:
+   m_ObjectHideFlags: 0
+   m_CorrespondingSourceObject: {fileID: 0}
+   m_PrefabInstance: {fileID: 0}
+   m_PrefabAsset: {fileID: 0}
+   m_GameObject: {fileID: 47993894687282416}
+   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+   m_LocalPosition: {x: 0, y: 0, z: 0}
+   m_LocalScale: {x: 1, y: 1, z: 1}
+   m_ConstrainProportionsScale: 0
+   m_Children:
++  - {fileID: 1731276328678881351}
++  - {fileID: 4118711072250304736}
++  - {fileID: 7314828646726544415}
++  - {fileID: 5495965501109855647}
+   - {fileID: 5246410496766448537}
+   m_Father: {fileID: 580066784630925966}
+   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+   m_AnchorMin: {x: 1, y: 1}
+   m_AnchorMax: {x: 1, y: 1}
+   m_AnchoredPosition: {x: -28, y: -170}
+   m_SizeDelta: {x: 195, y: 70}
+   m_Pivot: {x: 1, y: 1}
+ --- !u!222 &3045372019755539099
+ CanvasRenderer:
+@@ -49,21 +53,21 @@ CanvasRenderer:
+ --- !u!114 &1408963699512898190
+ MonoBehaviour:
+   m_ObjectHideFlags: 0
+   m_CorrespondingSourceObject: {fileID: 0}
+   m_PrefabInstance: {fileID: 0}
+   m_PrefabAsset: {fileID: 0}
+   m_GameObject: {fileID: 47993894687282416}
+   m_Enabled: 1
+   m_EditorHideFlags: 0
+   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+-  m_Name: 
++  m_Name:
+   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+   m_Material: {fileID: 0}
+   m_Color: {r: 0.98, g: 0.49, b: 0.19, a: 1}
+   m_RaycastTarget: 1
+   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+   m_Maskable: 1
+   m_OnCullStateChanged:
+     m_PersistentCalls:
+       m_Calls: []
+   m_Sprite: {fileID: 0}
+@@ -815,20 +819,115 @@ MonoBehaviour:
+   m_Sprite: {fileID: 0}
+   m_Type: 0
+   m_PreserveAspect: 0
+   m_FillCenter: 1
+   m_FillMethod: 4
+   m_FillAmount: 1
+   m_FillClockwise: 1
+   m_FillOrigin: 0
+   m_UseSpriteMesh: 0
+   m_PixelsPerUnitMultiplier: 1
++--- !u!1 &2567869572942998643
++GameObject:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  serializedVersion: 6
++  m_Component:
++  - component: {fileID: 5495965501109855647}
++  - component: {fileID: 3160459841951443655}
++  - component: {fileID: 6844991041009518024}
++  - component: {fileID: 2929313506514773468}
++  m_Layer: 0
++  m_Name: Rank letter
++  m_TagString: Untagged
++  m_Icon: {fileID: 0}
++  m_NavMeshLayer: 0
++  m_StaticEditorFlags: 0
++  m_IsActive: 1
++--- !u!224 &5495965501109855647
++RectTransform:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 2567869572942998643}
++  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
++  m_LocalPosition: {x: 0, y: 0, z: 0}
++  m_LocalScale: {x: 1, y: 1, z: 1}
++  m_ConstrainProportionsScale: 0
++  m_Children: []
++  m_Father: {fileID: 5213961478359284553}
++  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
++  m_AnchorMin: {x: 0.5, y: 0.5}
++  m_AnchorMax: {x: 0.5, y: 0.5}
++  m_AnchoredPosition: {x: -59, y: 0}
++  m_SizeDelta: {x: 72, y: 62}
++  m_Pivot: {x: 0.5, y: 0.5}
++--- !u!222 &3160459841951443655
++CanvasRenderer:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 2567869572942998643}
++  m_CullTransparentMesh: 1
++--- !u!114 &6844991041009518024
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 2567869572942998643}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
++  m_Name:
++  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
++  m_Material: {fileID: 0}
++  m_Color: {r: 1, g: 0.96, b: 0.82, a: 1}
++  m_RaycastTarget: 0
++  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
++  m_Maskable: 1
++  m_OnCullStateChanged:
++    m_PersistentCalls:
++      m_Calls: []
++  m_FontData:
++    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
++    m_FontSize: 44
++    m_FontStyle: 1
++    m_BestFit: 0
++    m_MinSize: 10
++    m_MaxSize: 44
++    m_Alignment: 4
++    m_AlignByGeometry: 0
++    m_RichText: 0
++    m_HorizontalOverflow: 0
++    m_VerticalOverflow: 0
++    m_LineSpacing: 1
++  m_Text:
++--- !u!114 &2929313506514773468
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 2567869572942998643}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
++  m_Name:
++  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Outline
++  m_EffectColor: {r: 0.22, g: 0.1, b: 0.07, a: 1}
++  m_EffectDistance: {x: 2, y: -2}
++  m_UseGraphicAlpha: 1
+ --- !u!1 &2610934226351533268
+ GameObject:
+   m_ObjectHideFlags: 0
+   m_CorrespondingSourceObject: {fileID: 0}
+   m_PrefabInstance: {fileID: 0}
+   m_PrefabAsset: {fileID: 0}
+   serializedVersion: 6
+   m_Component:
+   - component: {fileID: 77623344272136209}
+   - component: {fileID: 5649894770639737161}
+@@ -871,21 +970,21 @@ CanvasRenderer:
+ --- !u!114 &1868251023759688084
+ MonoBehaviour:
+   m_ObjectHideFlags: 0
+   m_CorrespondingSourceObject: {fileID: 0}
+   m_PrefabInstance: {fileID: 0}
+   m_PrefabAsset: {fileID: 0}
+   m_GameObject: {fileID: 2610934226351533268}
+   m_Enabled: 1
+   m_EditorHideFlags: 0
+   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+-  m_Name: 
++  m_Name:
+   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+   m_Material: {fileID: 0}
+   m_Color: {r: 0.38, g: 0.2, b: 0.12, a: 1}
+   m_RaycastTarget: 1
+   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+   m_Maskable: 1
+   m_OnCullStateChanged:
+     m_PersistentCalls:
+       m_Calls: []
+   m_Sprite: {fileID: 0}
+@@ -946,21 +1045,21 @@ CanvasRenderer:
+ --- !u!114 &8615433329992253196
+ MonoBehaviour:
+   m_ObjectHideFlags: 0
+   m_CorrespondingSourceObject: {fileID: 0}
+   m_PrefabInstance: {fileID: 0}
+   m_PrefabAsset: {fileID: 0}
+   m_GameObject: {fileID: 2832363654299973831}
+   m_Enabled: 1
+   m_EditorHideFlags: 0
+   m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+-  m_Name: 
++  m_Name:
+   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
+   m_Material: {fileID: 0}
+   m_Color: {r: 1, g: 0.97, b: 0.85, a: 1}
+   m_RaycastTarget: 0
+   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+   m_Maskable: 1
+   m_OnCullStateChanged:
+     m_PersistentCalls:
+       m_Calls: []
+   m_FontData:
+@@ -1025,21 +1124,21 @@ CanvasRenderer:
+ --- !u!114 &5650315011191748445
+ MonoBehaviour:
+   m_ObjectHideFlags: 0
+   m_CorrespondingSourceObject: {fileID: 0}
+   m_PrefabInstance: {fileID: 0}
+   m_PrefabAsset: {fileID: 0}
+   m_GameObject: {fileID: 2884196542716887608}
+   m_Enabled: 1
+   m_EditorHideFlags: 0
+   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+-  m_Name: 
++  m_Name:
+   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+   m_Material: {fileID: 0}
+   m_Color: {r: 1, g: 1, b: 1, a: 1}
+   m_RaycastTarget: 1
+   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+   m_Maskable: 1
+   m_OnCullStateChanged:
+     m_PersistentCalls:
+       m_Calls: []
+   m_Sprite: {fileID: 920643717385097554, guid: 8360ed0bb666dde4f89581d1c24aac29, type: 3}
+@@ -1103,21 +1202,21 @@ CanvasRenderer:
+ --- !u!114 &5476964712605347383
+ MonoBehaviour:
+   m_ObjectHideFlags: 0
+   m_CorrespondingSourceObject: {fileID: 0}
+   m_PrefabInstance: {fileID: 0}
+   m_PrefabAsset: {fileID: 0}
+   m_GameObject: {fileID: 3824257131387923476}
+   m_Enabled: 1
+   m_EditorHideFlags: 0
+   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+-  m_Name: 
++  m_Name:
+   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+   m_Material: {fileID: 0}
+   m_Color: {r: 0.13, g: 0.07, b: 0.05, a: 0.83}
+   m_RaycastTarget: 1
+   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+   m_Maskable: 1
+   m_OnCullStateChanged:
+     m_PersistentCalls:
+       m_Calls: []
+   m_Sprite: {fileID: 0}
+@@ -1210,22 +1309,23 @@ MonoBehaviour:
+ GameObject:
+   m_ObjectHideFlags: 0
+   m_CorrespondingSourceObject: {fileID: 0}
+   m_PrefabInstance: {fileID: 0}
+   m_PrefabAsset: {fileID: 0}
+   serializedVersion: 6
+   m_Component:
+   - component: {fileID: 5246410496766448537}
+   - component: {fileID: 630505139958674363}
+   - component: {fileID: 3444908059494326811}
++  - component: {fileID: 259913384938013862}
+   m_Layer: 0
+-  m_Name: RANK D
++  m_Name: Rank name
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+   m_StaticEditorFlags: 0
+   m_IsActive: 1
+ --- !u!224 &5246410496766448537
+ RectTransform:
+   m_ObjectHideFlags: 0
+   m_CorrespondingSourceObject: {fileID: 0}
+   m_PrefabInstance: {fileID: 0}
+@@ -1233,22 +1333,22 @@ RectTransform:
+   m_GameObject: {fileID: 4196493420624466134}
+   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+   m_LocalPosition: {x: 0, y: 0, z: 0}
+   m_LocalScale: {x: 1, y: 1, z: 1}
+   m_ConstrainProportionsScale: 0
+   m_Children: []
+   m_Father: {fileID: 5213961478359284553}
+   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+   m_AnchorMin: {x: 0.5, y: 0.5}
+   m_AnchorMax: {x: 0.5, y: 0.5}
+-  m_AnchoredPosition: {x: 0, y: 0}
+-  m_SizeDelta: {x: 190, y: 65}
++  m_AnchoredPosition: {x: 31, y: 0}
++  m_SizeDelta: {x: 116, y: 58}
+   m_Pivot: {x: 0.5, y: 0.5}
+ --- !u!222 &630505139958674363
+ CanvasRenderer:
+   m_ObjectHideFlags: 0
+   m_CorrespondingSourceObject: {fileID: 0}
+   m_PrefabInstance: {fileID: 0}
+   m_PrefabAsset: {fileID: 0}
+   m_GameObject: {fileID: 4196493420624466134}
+   m_CullTransparentMesh: 1
+ --- !u!114 &3444908059494326811
+@@ -1257,41 +1357,56 @@ MonoBehaviour:
+   m_CorrespondingSourceObject: {fileID: 0}
+   m_PrefabInstance: {fileID: 0}
+   m_PrefabAsset: {fileID: 0}
+   m_GameObject: {fileID: 4196493420624466134}
+   m_Enabled: 1
+   m_EditorHideFlags: 0
+   m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+   m_Name: 
+   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
+   m_Material: {fileID: 0}
+-  m_Color: {r: 0.22, g: 0.1, b: 0.07, a: 1}
++  m_Color: {r: 1, g: 0.96, b: 0.82, a: 1}
+   m_RaycastTarget: 0
+   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+   m_Maskable: 1
+   m_OnCullStateChanged:
+     m_PersistentCalls:
+       m_Calls: []
+   m_FontData:
+     m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+-    m_FontSize: 33
+-    m_FontStyle: 0
++    m_FontSize: 17
++    m_FontStyle: 1
+     m_BestFit: 0
+     m_MinSize: 10
+     m_MaxSize: 40
+     m_Alignment: 4
+     m_AlignByGeometry: 0
+     m_RichText: 0
+     m_HorizontalOverflow: 0
+     m_VerticalOverflow: 0
+     m_LineSpacing: 1
+   m_Text: RANK D
++--- !u!114 &259913384938013862
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 4196493420624466134}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
++  m_Name:
++  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Outline
++  m_EffectColor: {r: 0.22, g: 0.1, b: 0.07, a: 1}
++  m_EffectDistance: {x: 1, y: -1}
++  m_UseGraphicAlpha: 1
+ --- !u!1 &5101938558346965184
+ GameObject:
+   m_ObjectHideFlags: 0
+   m_CorrespondingSourceObject: {fileID: 0}
+   m_PrefabInstance: {fileID: 0}
+   m_PrefabAsset: {fileID: 0}
+   serializedVersion: 6
+   m_Component:
+   - component: {fileID: 4899822462750584850}
+   - component: {fileID: 6993103242399344392}
+@@ -1491,20 +1606,27 @@ MonoBehaviour:
+   m_Name: 
+   m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.GameplayUI
+   controller: {fileID: 0}
+   licensedFont: {fileID: 0}
+   profile: {fileID: 4433377320906866003}
+   hp: {fileID: 5590986902741298961}
+   time: {fileID: 5108119296473461865}
+   score: {fileID: 6714105611013329246}
+   difficulty: {fileID: 5732071056242973953}
+   rank: {fileID: 3444908059494326811}
++  rankLetter: {fileID: 6844991041009518024}
++  rankPlate: {fileID: 1408963699512898190}
++  rankCalloutPlate: {fileID: 4364669947955842786}
++  rankAccents:
++  - {fileID: 9127252653581794364}
++  - {fileID: 6319210640148459286}
++  - {fileID: 7573704815414010127}
+   leftHand: {fileID: 8615433329992253196}
+   rightHand: {fileID: 7242670837689447423}
+   inputSource: {fileID: 2186950207450453643}
+   status: {fileID: 1983654617427306160}
+   rankCallout: {fileID: 3372611870995129227}
+   pauseButton: {fileID: 2929596999805459262}
+   resumeButton: {fileID: 7240139124753974564}
+   pauseOverlay: {fileID: 3824257131387923476}
+   resultPanel: {fileID: 1006907789791884234}
+ --- !u!1 &5269852540255325446
+@@ -1579,20 +1701,95 @@ MonoBehaviour:
+     m_BestFit: 0
+     m_MinSize: 10
+     m_MaxSize: 72
+     m_Alignment: 4
+     m_AlignByGeometry: 0
+     m_RichText: 0
+     m_HorizontalOverflow: 0
+     m_VerticalOverflow: 0
+     m_LineSpacing: 1
+   m_Text: 3
++--- !u!1 &5381284232887830512
++GameObject:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  serializedVersion: 6
++  m_Component:
++  - component: {fileID: 7314828646726544415}
++  - component: {fileID: 3684676418140706621}
++  - component: {fileID: 7573704815414010127}
++  m_Layer: 0
++  m_Name: Rank accent 3
++  m_TagString: Untagged
++  m_Icon: {fileID: 0}
++  m_NavMeshLayer: 0
++  m_StaticEditorFlags: 0
++  m_IsActive: 1
++--- !u!224 &7314828646726544415
++RectTransform:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 5381284232887830512}
++  m_LocalRotation: {x: 0, y: 0, z: -0.104528464, w: 0.9945219}
++  m_LocalPosition: {x: 0, y: 0, z: 0}
++  m_LocalScale: {x: 1, y: 1, z: 1}
++  m_ConstrainProportionsScale: 0
++  m_Children: []
++  m_Father: {fileID: 5213961478359284553}
++  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
++  m_AnchorMin: {x: 0.5, y: 0.5}
++  m_AnchorMax: {x: 0.5, y: 0.5}
++  m_AnchoredPosition: {x: -24, y: -26}
++  m_SizeDelta: {x: 36, y: 7}
++  m_Pivot: {x: 0.5, y: 0.5}
++--- !u!222 &3684676418140706621
++CanvasRenderer:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 5381284232887830512}
++  m_CullTransparentMesh: 1
++--- !u!114 &7573704815414010127
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 5381284232887830512}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
++  m_Name:
++  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
++  m_Material: {fileID: 0}
++  m_Color: {r: 1, g: 0.91, b: 0.52, a: 1}
++  m_RaycastTarget: 0
++  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
++  m_Maskable: 1
++  m_OnCullStateChanged:
++    m_PersistentCalls:
++      m_Calls: []
++  m_Sprite: {fileID: 0}
++  m_Type: 0
++  m_PreserveAspect: 0
++  m_FillCenter: 1
++  m_FillMethod: 4
++  m_FillAmount: 1
++  m_FillClockwise: 1
++  m_FillOrigin: 0
++  m_UseSpriteMesh: 0
++  m_PixelsPerUnitMultiplier: 1
+ --- !u!1 &5997560584959853924
+ GameObject:
+   m_ObjectHideFlags: 0
+   m_CorrespondingSourceObject: {fileID: 0}
+   m_PrefabInstance: {fileID: 0}
+   m_PrefabAsset: {fileID: 0}
+   serializedVersion: 6
+   m_Component:
+   - component: {fileID: 3069093458260496538}
+   - component: {fileID: 6759701066901858102}
+@@ -1937,20 +2134,95 @@ MonoBehaviour:
+     m_BestFit: 0
+     m_MinSize: 10
+     m_MaxSize: 40
+     m_Alignment: 4
+     m_AlignByGeometry: 0
+     m_RichText: 0
+     m_HorizontalOverflow: 0
+     m_VerticalOverflow: 0
+     m_LineSpacing: 1
+   m_Text: RIGHT  0%
++--- !u!1 &7409266048508616078
++GameObject:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  serializedVersion: 6
++  m_Component:
++  - component: {fileID: 4118711072250304736}
++  - component: {fileID: 567151538098150281}
++  - component: {fileID: 6319210640148459286}
++  m_Layer: 0
++  m_Name: Rank accent 2
++  m_TagString: Untagged
++  m_Icon: {fileID: 0}
++  m_NavMeshLayer: 0
++  m_StaticEditorFlags: 0
++  m_IsActive: 1
++--- !u!224 &4118711072250304736
++RectTransform:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 7409266048508616078}
++  m_LocalRotation: {x: 0, y: 0, z: -0.104528464, w: 0.9945219}
++  m_LocalPosition: {x: 0, y: 0, z: 0}
++  m_LocalScale: {x: 1, y: 1, z: 1}
++  m_ConstrainProportionsScale: 0
++  m_Children: []
++  m_Father: {fileID: 5213961478359284553}
++  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
++  m_AnchorMin: {x: 0.5, y: 0.5}
++  m_AnchorMax: {x: 0.5, y: 0.5}
++  m_AnchoredPosition: {x: -47, y: -26}
++  m_SizeDelta: {x: 36, y: 7}
++  m_Pivot: {x: 0.5, y: 0.5}
++--- !u!222 &567151538098150281
++CanvasRenderer:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 7409266048508616078}
++  m_CullTransparentMesh: 1
++--- !u!114 &6319210640148459286
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 7409266048508616078}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
++  m_Name:
++  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
++  m_Material: {fileID: 0}
++  m_Color: {r: 1, g: 0.91, b: 0.52, a: 1}
++  m_RaycastTarget: 0
++  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
++  m_Maskable: 1
++  m_OnCullStateChanged:
++    m_PersistentCalls:
++      m_Calls: []
++  m_Sprite: {fileID: 0}
++  m_Type: 0
++  m_PreserveAspect: 0
++  m_FillCenter: 1
++  m_FillMethod: 4
++  m_FillAmount: 1
++  m_FillClockwise: 1
++  m_FillOrigin: 0
++  m_UseSpriteMesh: 0
++  m_PixelsPerUnitMultiplier: 1
+ --- !u!1 &7664239420513277865
+ GameObject:
+   m_ObjectHideFlags: 0
+   m_CorrespondingSourceObject: {fileID: 0}
+   m_PrefabInstance: {fileID: 0}
+   m_PrefabAsset: {fileID: 0}
+   serializedVersion: 6
+   m_Component:
+   - component: {fileID: 9108813565634650400}
+   - component: {fileID: 7273534303068179393}
+@@ -2171,20 +2443,95 @@ MonoBehaviour:
+   m_Sprite: {fileID: 0}
+   m_Type: 0
+   m_PreserveAspect: 0
+   m_FillCenter: 1
+   m_FillMethod: 4
+   m_FillAmount: 1
+   m_FillClockwise: 1
+   m_FillOrigin: 0
+   m_UseSpriteMesh: 0
+   m_PixelsPerUnitMultiplier: 1
++--- !u!1 &8686609816298218689
++GameObject:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  serializedVersion: 6
++  m_Component:
++  - component: {fileID: 1731276328678881351}
++  - component: {fileID: 7107663565486872739}
++  - component: {fileID: 9127252653581794364}
++  m_Layer: 0
++  m_Name: Rank accent 1
++  m_TagString: Untagged
++  m_Icon: {fileID: 0}
++  m_NavMeshLayer: 0
++  m_StaticEditorFlags: 0
++  m_IsActive: 1
++--- !u!224 &1731276328678881351
++RectTransform:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 8686609816298218689}
++  m_LocalRotation: {x: 0, y: 0, z: -0.104528464, w: 0.9945219}
++  m_LocalPosition: {x: 0, y: 0, z: 0}
++  m_LocalScale: {x: 1, y: 1, z: 1}
++  m_ConstrainProportionsScale: 0
++  m_Children: []
++  m_Father: {fileID: 5213961478359284553}
++  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
++  m_AnchorMin: {x: 0.5, y: 0.5}
++  m_AnchorMax: {x: 0.5, y: 0.5}
++  m_AnchoredPosition: {x: -70, y: -26}
++  m_SizeDelta: {x: 36, y: 7}
++  m_Pivot: {x: 0.5, y: 0.5}
++--- !u!222 &7107663565486872739
++CanvasRenderer:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 8686609816298218689}
++  m_CullTransparentMesh: 1
++--- !u!114 &9127252653581794364
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 8686609816298218689}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
++  m_Name:
++  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
++  m_Material: {fileID: 0}
++  m_Color: {r: 1, g: 0.91, b: 0.52, a: 1}
++  m_RaycastTarget: 0
++  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
++  m_Maskable: 1
++  m_OnCullStateChanged:
++    m_PersistentCalls:
++      m_Calls: []
++  m_Sprite: {fileID: 0}
++  m_Type: 0
++  m_PreserveAspect: 0
++  m_FillCenter: 1
++  m_FillMethod: 4
++  m_FillAmount: 1
++  m_FillClockwise: 1
++  m_FillOrigin: 0
++  m_UseSpriteMesh: 0
++  m_PixelsPerUnitMultiplier: 1
+ --- !u!1001 &1785924449352796292
+ PrefabInstance:
+   m_ObjectHideFlags: 0
+   serializedVersion: 2
+   m_Modification:
+     serializedVersion: 3
+     m_TransformParent: {fileID: 580066784630925966}
+     m_Modifications:
+     - target: {fileID: 1061722194712472406, guid: abae06ace408f7b4caf46b8862c7f848, type: 3}
+       propertyPath: m_Pivot.x
+diff --git a/Assets/CPS/Tests/EditMode/PresentationAuthoringTests.cs b/Assets/CPS/Tests/EditMode/PresentationAuthoringTests.cs
+index 762949a..186d76b 100644
+--- a/Assets/CPS/Tests/EditMode/PresentationAuthoringTests.cs
++++ b/Assets/CPS/Tests/EditMode/PresentationAuthoringTests.cs
+@@ -18,20 +18,33 @@ public void ProductionSpritesHaveTightFootPivotsAndStretchablePanel()
+ 
+             Assert.That(body, Has.Length.EqualTo(12));
+             Assert.That(items, Has.Length.EqualTo(5));
+             Assert.That(ambient, Has.Length.EqualTo(3));
+             Assert.That(body[0].pivot.y, Is.LessThan(4f));
+             Assert.That(panel, Is.Not.Null);
+             Assert.That(panel.border.x, Is.GreaterThan(0));
+             Assert.That(panel.border.y, Is.GreaterThan(0));
+         }
+ 
++        [Test]
++        public void BananaPeelSliceIncludesCompleteSourceCurlWithoutMovingItsRuntimePivot()
++        {
++            var peel = AssetDatabase.LoadAllAssetsAtPath("Assets/CPS/Art/Items/items-atlas-v1.png")
++                .OfType<Sprite>().Single(sprite => sprite.name == "BananaPeel");
++            Vector2 texturePivot = peel.rect.position + peel.pivot;
++
++            Assert.That(peel.rect.xMin, Is.EqualTo(569).Within(.01f));
++            Assert.That(peel.rect.xMax, Is.EqualTo(1053).Within(.01f), "Right curl is clipped or includes unrelated pixels");
++            Assert.That(texturePivot.x, Is.EqualTo(796.5f).Within(.01f), "Expanding the slice moved the runtime pivot");
++            Assert.That(peel.pixelsPerUnit, Is.EqualTo(350).Within(.01f));
++        }
++
+         [Test]
+         public void ProductionIdleAndRunClipsHaveAnimatorLoopTime()
+         {
+             foreach (string name in new[] { "Idle", "Run" })
+             {
+                 var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/CPS/Animation/Mascot/" + name + ".anim");
+                 Assert.That(clip, Is.Not.Null);
+                 var loop = new SerializedObject(clip).FindProperty("m_AnimationClipSettings.m_LoopTime");
+                 Assert.That(loop, Is.Not.Null);
+                 Assert.That(loop.boolValue, Is.True, name + " must repeat in Animator");
+@@ -143,20 +156,42 @@ public void ResultsActionsLeaveInputDisclosureReadableAndMenuStatusPadded()
+ 
+             var menu = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CPS/Prefabs/MainMenuCanvas.prefab");
+             var panel = menu.transform.Find("Profile and difficulty").GetComponent<RectTransform>();
+             var image = panel.GetComponent<Image>();
+             var status = menu.transform.Find("Select or create a profile.").GetComponent<RectTransform>();
+             float bottom = status.anchoredPosition.y - status.sizeDelta.y * .5f - panel.anchoredPosition.y;
+             float creamBottom = panel.rect.yMin + image.sprite.border.y / image.pixelsPerUnitMultiplier;
+             Assert.That(bottom, Is.GreaterThanOrEqualTo(creamBottom + 20), "Menu status crowds the wood rim");
+         }
+ 
++        [Test]
++        public void RankBadgeUsesLiveLetterNameAndThreeCodeNativeAccentsInsideExistingFootprint()
++        {
++            var gameplay = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CPS/Prefabs/GameplayCanvas.prefab");
++            var ui = new SerializedObject(gameplay.GetComponent<GameplayUI>());
++            var badge = gameplay.transform.Find("Rank badge").GetComponent<RectTransform>();
++            var letter = ui.FindProperty("rankLetter").objectReferenceValue as Text;
++            var name = ui.FindProperty("rank").objectReferenceValue as Text;
++            var accents = ui.FindProperty("rankAccents");
++
++            Assert.That(badge.sizeDelta, Is.EqualTo(new Vector2(195, 70)));
++            Assert.That(badge.anchorMin, Is.EqualTo(Vector2.one));
++            Assert.That(badge.anchorMax, Is.EqualTo(Vector2.one));
++            Assert.That(letter, Is.Not.Null);
++            Assert.That(name, Is.Not.Null);
++            Assert.That(letter.fontStyle, Is.EqualTo(FontStyle.Bold));
++            Assert.That(letter.GetComponent<Outline>(), Is.Not.Null);
++            Assert.That(accents.arraySize, Is.EqualTo(3));
++            for (int i = 0; i < accents.arraySize; i++)
++                Assert.That(accents.GetArrayElementAtIndex(i).objectReferenceValue, Is.TypeOf<Image>());
++        }
++
+         private static void AssertInsideCream(Transform root, string panelPath, string contentPath)
+         {
+             var panel = root.Find(panelPath).GetComponent<RectTransform>();
+             var sprite = panel.GetComponent<Image>().sprite;
+             var content = root.Find(contentPath).GetComponent<RectTransform>();
+             Assert.That(panel.anchorMin, Is.EqualTo(new Vector2(.5f, .5f)));
+             Assert.That(panel.anchorMax, Is.EqualTo(panel.anchorMin));
+             Assert.That(content.anchorMin, Is.EqualTo(new Vector2(.5f, .5f)));
+             Assert.That(content.anchorMax, Is.EqualTo(content.anchorMin));
+             var center = PositionInRoot(content, root) - PositionInRoot(panel, root);
+diff --git a/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs b/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs
+index 1d45976..2e1036c 100644
+--- a/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs
++++ b/Assets/CPS/Tests/PlayMode/GameSceneFlowTests.cs
+@@ -230,20 +230,21 @@ public IEnumerator ViewportKeepsCanvasOnCameraAtReferenceSizeAcrossAspectRatios(
+                 {
+                     var target = new RenderTexture(size.x, size.y, 24);
+                     try
+                     {
+                         camera.targetTexture = target;
+                         viewport.Apply(size.x, size.y);
+                         yield return null;
+                         Canvas.ForceUpdateCanvases();
+                         Assert.That(canvas.renderMode, Is.EqualTo(RenderMode.ScreenSpaceCamera));
+                         Assert.That(canvas.worldCamera, Is.SameAs(camera));
++                        Assert.That(canvas.pixelPerfect, Is.True, "Screen-space text must stay pixel-aligned after viewport changes");
+                         Assert.That(scaler.uiScaleMode, Is.EqualTo(UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize));
+                         Assert.That(scaler.referenceResolution, Is.EqualTo(new Vector2(1920, 1080)));
+                         Assert.That(scaler.screenMatchMode, Is.EqualTo(UnityEngine.UI.CanvasScaler.ScreenMatchMode.Expand));
+                         float scale = Mathf.Min(size.x / 1920f, size.y / 1080f);
+                         Assert.That(camera.pixelRect.width, Is.EqualTo(1920 * scale).Within(1));
+                         Assert.That(camera.pixelRect.height, Is.EqualTo(1080 * scale).Within(1));
+                         Assert.That(canvas.pixelRect, Is.EqualTo(camera.pixelRect));
+                         Assert.That(canvas.scaleFactor, Is.EqualTo(scale).Within(.01f));
+                         var bounds = canvas.GetComponent<RectTransform>().rect;
+                         Assert.That(bounds.width, Is.EqualTo(1920).Within(2));
+@@ -464,46 +465,43 @@ public IEnumerator ProductionMascotResetClearsDeadSpriteAndDissolve()
+             animator.Update(.001f);
+             Assert.That(animator.GetCurrentAnimatorStateInfo(0).IsName("Idle"), Is.True);
+             Assert.That(body.sprite.name, Is.EqualTo("IdleA"));
+             Assert.That(dissolve.isPlaying, Is.False);
+             Assert.That(dissolve.IsAlive(true), Is.False);
+             Assert.That(body.color, Is.EqualTo(Color.white));
+             Assert.That(body.enabled, Is.True);
+         }
+ 
+         [UnityTest]
+-        public IEnumerator ProductionReviewCaptureAtWideAndActivePlay()
++        public IEnumerator ProductionVisualFixCaptureAtRequiredSizes()
+         {
+             yield return SceneManager.LoadSceneAsync("MainMenu");
+-            yield return null;
+-            yield return CaptureProduction("menu-initial", new Vector2Int(1920, 1080),
+-                "CPS_TASK7_REVIEW_CAPTURE_DIR", "task7-review");
+             for (int i = 0; i < 10; i++) yield return null;
+-            yield return CaptureProduction("menu-settled", new Vector2Int(1920, 1080),
+-                "CPS_TASK7_REVIEW_CAPTURE_DIR", "task7-review");
++            yield return CaptureProduction("menu", new Vector2Int(1920, 1080),
++                "CPS_TASK7_VISUAL_FIX_CAPTURE_DIR", "task7-visual-fix");
++            yield return CaptureProduction("menu", new Vector2Int(1280, 720),
++                "CPS_TASK7_VISUAL_FIX_CAPTURE_DIR", "task7-visual-fix");
+ 
+             var menu = Object.FindFirstObjectByType<MainMenuUI>();
+             CreateSelectedProfile(menu, DifficultyId.Normal);
+             Assert.That(menu.StartSelectedGame(), Is.True);
+             for (int i = 0; i < 100 && SceneManager.GetActiveScene().name != "Gameplay"; i++) yield return null;
+             yield return null;
+             var flow = Object.FindFirstObjectByType<GameSessionController>();
+             flow.enabled = false;
+             flow.Restart(); flow.Step(3);
+             Assert.That(flow.State, Is.EqualTo(SessionState.Playing));
+-            yield return CaptureProduction("gameplay-initial", new Vector2Int(1920, 1080),
+-                "CPS_TASK7_REVIEW_CAPTURE_DIR", "task7-review");
+             for (int i = 0; i < 10; i++) yield return null;
+-            yield return CaptureProduction("gameplay-settled", new Vector2Int(1920, 1080),
+-                "CPS_TASK7_REVIEW_CAPTURE_DIR", "task7-review");
+-            yield return CaptureProduction("wide-production-full-viewport", new Vector2Int(2560, 1080),
+-                "CPS_TASK7_REVIEW_CAPTURE_DIR", "task7-review");
++            yield return CaptureProduction("gameplay", new Vector2Int(1920, 1080),
++                "CPS_TASK7_VISUAL_FIX_CAPTURE_DIR", "task7-visual-fix");
++            yield return CaptureProduction("gameplay", new Vector2Int(1280, 720),
++                "CPS_TASK7_VISUAL_FIX_CAPTURE_DIR", "task7-visual-fix");
+ 
+             var spawner = Object.FindFirstObjectByType<FallingObjectSpawner>();
+             var type = typeof(FallingObjectSpawner);
+             var prefab = (FallingObject)type.GetField("prefab", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(spawner);
+             var foods = (FallingObjectDefinition[])type.GetField("foodDefinitions", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(spawner);
+             var trash = (FallingObjectDefinition[])type.GetField("trashDefinitions", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(spawner);
+             Assert.That(foods.Length, Is.EqualTo(3));
+             Assert.That(trash.Length, Is.EqualTo(2));
+             var definitions = new[] { foods[0], foods[1], foods[2], trash[0], trash[1] };
+             var positions = new[] { new Vector2(-5.3f, 2.3f), new Vector2(-2.5f, .8f),
+@@ -513,27 +511,29 @@ public IEnumerator ProductionReviewCaptureAtWideAndActivePlay()
+                 var item = Object.Instantiate(prefab, spawner.transform);
+                 item.Spawn(200001 + i, definitions[i], positions[i], 1);
+                 Assert.That(item.GetComponent<SpriteRenderer>().sprite, Is.SameAs(definitions[i].sprite));
+                 TestContext.WriteLine("Diagnostic item " + definitions[i].name + " at " + positions[i]);
+             }
+             for (int i = 0; i < 12; i++)
+                 flow.Model.Resolve(300001 + i, ObjectKind.Food, ObjectOutcome.Caught, foods[0].points);
+             var ui = Object.FindFirstObjectByType<GameplayUI>();
+             ui.Refresh();
+             var rank = (Text)typeof(GameplayUI).GetField("rank", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ui);
++            var rankLetter = (Text)typeof(GameplayUI).GetField("rankLetter", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ui);
+             var callout = (Text)typeof(GameplayUI).GetField("rankCallout", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ui);
+-            Assert.That(rank.text, Is.EqualTo("RANK SSS"));
++            Assert.That(rank.text, Is.EqualTo("Supreme Chef!"));
++            Assert.That(rankLetter.text, Is.EqualTo("SSS"));
+             Assert.That(callout.text, Does.Contain("Supreme Chef!"));
+             Assert.That(callout.transform.parent.gameObject.activeInHierarchy, Is.True);
+             TestContext.WriteLine("Deterministic diagnostic composition: five production FallingObjects and 12 resolved food catches for SSS; not an organic play sequence.");
+             yield return CaptureProduction("diagnostic-active-sss-five-items", new Vector2Int(1920, 1080),
+-                "CPS_TASK7_REVIEW_CAPTURE_DIR", "task7-review");
++                "CPS_TASK7_VISUAL_FIX_CAPTURE_DIR", "task7-visual-fix");
+         }
+ 
+         private static IEnumerator CaptureProduction(string label, Vector2Int size,
+             string directoryVariable = "CPS_TASK6_CAPTURE_DIR", string prefix = "task6")
+         {
+             var camera = Camera.main;
+             var viewport = camera.GetComponent<GameplayViewport>();
+             var canvas = Object.FindFirstObjectByType<Canvas>();
+             var target = new RenderTexture(size.x, size.y, 24);
+             var priorTarget = camera.targetTexture;
+diff --git a/Assets/CPS/Tests/PlayMode/GameUITests.cs b/Assets/CPS/Tests/PlayMode/GameUITests.cs
+index 47ed100..58f26af 100644
+--- a/Assets/CPS/Tests/PlayMode/GameUITests.cs
++++ b/Assets/CPS/Tests/PlayMode/GameUITests.cs
+@@ -1,12 +1,13 @@
+ using System;
+ using System.Collections.Generic;
++using System.Linq;
+ using System.Reflection;
+ using NUnit.Framework;
+ using UnityEngine;
+ using UnityEngine.UI;
+ using Object = UnityEngine.Object;
+ 
+ namespace CPS.KitchenCatch.Tests
+ {
+     public sealed class GameUITests
+     {
+@@ -198,20 +199,67 @@ public void BoundHudShowsRoundValuesAndSimulatedHandInputsWithoutNewtons()
+             ui.Refresh();
+             Assert.That(Get<Text>(ui, "hp").text, Does.Contain("3"));
+             Assert.That(Get<Text>(ui, "time").text, Does.Contain("60"));
+             Assert.That(Get<Text>(ui, "score").text, Does.Contain("25"));
+             Assert.That(Get<Text>(ui, "rank").text, Does.Contain("C"));
+             Assert.That(Get<Text>(ui, "rankCallout").text, Does.Contain("OK").And.Contain("Cookin'"));
+             Assert.That(Get<Text>(ui, "inputSource").text, Does.Contain("Simulated Input"));
+             Assert.That(Get<Text>(ui, "leftHand").text, Does.Contain("0%").And.Not.Contain("N"));
+         }
+ 
++        [Test]
++        public void RankPresentationEscalatesLetterNameColorAndAccentWithoutChangingScore()
++        {
++            var controller = New<GameSessionController>("Round");
++            controller.Model.Start();
++            var ui = New<GameplayUI>("HUD");
++            var rankName = New<Text>("Rank name");
++            var rankLetter = New<Text>("Rank letter");
++            var plate = New<Image>("Rank plate");
++            var calloutPlate = New<Image>("Rank callout plate");
++            var accents = new[] { New<Image>("Accent 1"), New<Image>("Accent 2"), New<Image>("Accent 3") };
++            var calloutPanel = new GameObject("Rank callout"); objects.Add(calloutPanel);
++            var callout = New<Text>("Rank callout text"); callout.transform.SetParent(calloutPanel.transform, false);
++            Set(ui, "rank", rankName);
++            Set(ui, "rankLetter", rankLetter);
++            Set(ui, "rankPlate", plate);
++            Set(ui, "rankCalloutPlate", calloutPlate);
++            Set(ui, "rankAccents", accents);
++            Set(ui, "rankCallout", callout);
++            ui.Bind(controller);
++
++            int[] streaks = { 0, 2, 3, 4, 5, 8, 12 };
++            string[] letters = { "D", "C", "B", "A", "S", "SS", "SSS" };
++            string[] names = { "Dull Dish", "Cookin'", "Bold Bite", "Appetizing!", "Sizzling!", "Super Savory!", "Supreme Chef!" };
++            int[] accentCounts = { 0, 1, 1, 2, 2, 3, 3 };
++            int[] letterSizes = { 44, 44, 44, 44, 44, 40, 32 };
++            var colors = new HashSet<string>();
++            int catchCount = 0;
++            for (int i = 0; i < streaks.Length; i++)
++            {
++                while (catchCount < streaks[i])
++                {
++                    catchCount++;
++                    controller.Model.Resolve(catchCount, ObjectKind.Food, ObjectOutcome.Caught, 10);
++                }
++                ui.Refresh();
++                Assert.That(rankLetter.text, Is.EqualTo(letters[i]));
++                Assert.That(rankLetter.fontSize, Is.EqualTo(letterSizes[i]));
++                Assert.That(rankName.text, Is.EqualTo(names[i]));
++                Assert.That(accents.Count(accent => accent.gameObject.activeSelf), Is.EqualTo(accentCounts[i]));
++                colors.Add(ColorUtility.ToHtmlStringRGBA(plate.color));
++            }
++
++            Assert.That(colors.Count, Is.EqualTo(7));
++            Assert.That(controller.Model.Score.Score, Is.EqualTo(120));
++        }
++
+         private T New<T>(string name) where T : Component
+         {
+             var go = new GameObject(name); objects.Add(go);
+             return go.AddComponent<T>();
+         }
+         private static void Set(object target, string field, object value) => target.GetType()
+             .GetField(field, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(target, value);
+         private static T Get<T>(object target, string field) where T : class => (T)target.GetType()
+             .GetField(field, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(target);
+     }
+diff --git a/Assets/CPS/UI/GameplayUI.cs b/Assets/CPS/UI/GameplayUI.cs
+index 1a8d0f5..633a7fb 100644
+--- a/Assets/CPS/UI/GameplayUI.cs
++++ b/Assets/CPS/UI/GameplayUI.cs
+@@ -6,20 +6,24 @@ namespace CPS.KitchenCatch
+     public sealed class GameplayUI : MonoBehaviour
+     {
+         [SerializeField] private GameSessionController controller;
+         [SerializeField] private Font licensedFont;
+         [SerializeField] private Text profile;
+         [SerializeField] private Text hp;
+         [SerializeField] private Text time;
+         [SerializeField] private Text score;
+         [SerializeField] private Text difficulty;
+         [SerializeField] private Text rank;
++        [SerializeField] private Text rankLetter;
++        [SerializeField] private Image rankPlate;
++        [SerializeField] private Image rankCalloutPlate;
++        [SerializeField] private Image[] rankAccents;
+         [SerializeField] private Text leftHand;
+         [SerializeField] private Text rightHand;
+         [SerializeField] private Text inputSource;
+         [SerializeField] private Text status;
+         [SerializeField] private Text rankCallout;
+         [SerializeField] private Button pauseButton;
+         [SerializeField] private Button resumeButton;
+         [SerializeField] private GameObject pauseOverlay;
+         [SerializeField] private ResultPanel resultPanel;
+         private bool listening;
+@@ -58,27 +62,29 @@ public void Bind(GameSessionController source)
+                 listening = true;
+             }
+             if (resultPanel != null) resultPanel.Bind(source);
+             Refresh();
+         }
+ 
+         public void Refresh()
+         {
+             if (controller == null) return;
+             var model = controller.Model;
++            var current = model.Score.CurrentRank;
+             if (profile != null) profile.text = AppSession.Instance?.SelectedProfile?.DisplayName ?? "PLAYER";
+             if (profile != null) profile.supportRichText = false;
+             if (hp != null) hp.text = "HP " + model.Health.CurrentHp + " / 3";
+             if (time != null) time.text = "TIME " + Mathf.CeilToInt(model.RemainingSeconds).ToString("00");
+             if (score != null) score.text = "SCORE " + model.Score.Score.ToString("N0");
+             if (difficulty != null) difficulty.text = AppSession.Instance?.SelectedDifficulty.ToString() ?? "Easy";
+-            if (rank != null) rank.text = "RANK " + model.Score.CurrentRank;
++            if (rank != null) rank.text = RankName(current);
++            ApplyRankPresentation(current);
+             if (leftHand != null) leftHand.text = "LEFT  " + Mathf.RoundToInt(controller.LastInput.Left.Strength01 * 100) + "%";
+             if (rightHand != null) rightHand.text = "RIGHT  " + Mathf.RoundToInt(controller.LastInput.Right.Strength01 * 100) + "%";
+             if (inputSource != null) inputSource.text = "Simulated Input · Keyboard";
+             bool showInputs = controller.State != SessionState.Results;
+             if (leftHand != null) leftHand.transform.parent.gameObject.SetActive(showInputs);
+             if (rightHand != null) rightHand.transform.parent.gameObject.SetActive(showInputs);
+             if (inputSource != null) inputSource.gameObject.SetActive(showInputs);
+             if (status != null)
+                 status.text = controller.ValidationError ?? (controller.IsPaused ? "PAUSED · Choose RESUME" :
+                     controller.CountdownSeconds > 0 ? Mathf.CeilToInt(controller.CountdownSeconds).ToString() :
+@@ -88,21 +94,20 @@ public void Refresh()
+             if (resumeButton != null) resumeButton.gameObject.SetActive(controller.IsPaused);
+             if (pauseOverlay != null) pauseOverlay.SetActive(controller.IsPaused);
+             if (controller.IsPaused != wasPaused)
+             {
+                 wasPaused = controller.IsPaused;
+                 var focus = wasPaused ? resumeButton : pauseButton;
+                 if (focus != null && focus.gameObject.activeInHierarchy && UnityEngine.EventSystems.EventSystem.current != null)
+                     UnityEngine.EventSystems.EventSystem.current.SetSelectedGameObject(focus.gameObject);
+             }
+ 
+-            var current = model.Score.CurrentRank;
+             if (current > lastRank)
+             {
+                 lastRank = current;
+                 calloutSeconds = 1.1f;
+                 if (rankCallout != null) rankCallout.text = Praise(model.Score.Streak) + " · " + RankName(current);
+             }
+             else if (current == ComboRank.D) lastRank = current;
+             if (rankCallout != null) rankCallout.transform.parent.gameObject.SetActive(calloutSeconds > 0 && controller.State == SessionState.Playing);
+         }
+ 
+@@ -139,12 +144,45 @@ private void Unsubscribe()
+         private void Pause() => controller?.Pause();
+         private void Resume() => controller?.Resume();
+ 
+         private static string Praise(int streak) => streak == 2 ? "OK" : streak == 3 ? "Good" : streak == 4 ? "Great" : "Perfect";
+         private static string RankName(ComboRank value) => value switch
+         {
+             ComboRank.C => "Cookin'", ComboRank.B => "Bold Bite", ComboRank.A => "Appetizing!",
+             ComboRank.S => "Sizzling!", ComboRank.SS => "Super Savory!", ComboRank.SSS => "Supreme Chef!",
+             _ => "Dull Dish"
+         };
++
++        private void ApplyRankPresentation(ComboRank value)
++        {
++            if (rankLetter != null)
++            {
++                rankLetter.text = value.ToString();
++                rankLetter.fontSize = value == ComboRank.SSS ? 32 : value == ComboRank.SS ? 40 : 44;
++            }
++            var color = RankColor(value);
++            if (rankPlate != null) rankPlate.color = color;
++            if (rankCalloutPlate != null) rankCalloutPlate.color = color;
++            int visibleAccents = value switch
++            {
++                ComboRank.C or ComboRank.B => 1,
++                ComboRank.A or ComboRank.S => 2,
++                ComboRank.SS or ComboRank.SSS => 3,
++                _ => 0
++            };
++            if (rankAccents == null) return;
++            for (int i = 0; i < rankAccents.Length; i++)
++                if (rankAccents[i] != null) rankAccents[i].gameObject.SetActive(i < visibleAccents);
++        }
++
++        private static Color RankColor(ComboRank value) => value switch
++        {
++            ComboRank.C => new Color(.94f, .45f, .14f),
++            ComboRank.B => new Color(.88f, .24f, .14f),
++            ComboRank.A => new Color(.87f, .18f, .40f),
++            ComboRank.S => new Color(.96f, .61f, .05f),
++            ComboRank.SS => new Color(.72f, .10f, .43f),
++            ComboRank.SSS => new Color(.02f, .58f, .48f),
++            _ => new Color(.45f, .36f, .29f)
++        };
+     }
+ }
+diff --git a/Assets/CPS/UI/GameplayViewport.cs b/Assets/CPS/UI/GameplayViewport.cs
+index 4694e42..dc63e2d 100644
+--- a/Assets/CPS/UI/GameplayViewport.cs
++++ b/Assets/CPS/UI/GameplayViewport.cs
+@@ -16,20 +16,21 @@ public void Apply(int width, int height)
+             const float target = 16f / 9;
+             var rect = new Rect(0, 0, 1, 1);
+             if (ratio > target) { rect.width = target / ratio; rect.x = (1 - rect.width) / 2; }
+             else { rect.height = ratio / target; rect.y = (1 - rect.height) / 2; }
+             var camera = GetComponent<Camera>();
+             camera.rect = rect;
+             if (canvas != null)
+             {
+                 canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                 canvas.worldCamera = camera;
++                canvas.pixelPerfect = true;
+                 var scaler = canvas.GetComponent<CanvasScaler>();
+                 scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                 scaler.referenceResolution = new Vector2(1920, 1080);
+                 scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
+             }
+             lastWidth = width; lastHeight = height;
+         }
+         private void OnEnable() => Apply(Screen.width, Screen.height);
+         private void Update()
+         {

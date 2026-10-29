@@ -1,0 +1,813 @@
+# Review package: 58122dcf35ab98921f17a461907f7f52900b8556..5965e66d0d0ed8e36e6af9b7126e2341d9f4544b
+
+## Commits
+5965e66 feat: add tested kitchen catch rules
+
+## Files changed
+ Assets/CPS.meta                                    |   8 +
+ Assets/CPS/CPS.Runtime.asmdef                      |   5 +
+ Assets/CPS/CPS.Runtime.asmdef.meta                 |   7 +
+ Assets/CPS/Game.meta                               |   8 +
+ Assets/CPS/Game/GameSessionModel.cs                |  57 ++++
+ Assets/CPS/Game/GameSessionModel.cs.meta           |   2 +
+ Assets/CPS/Game/GameTypes.cs                       |   9 +
+ Assets/CPS/Game/GameTypes.cs.meta                  |   2 +
+ Assets/CPS/Game/HealthSystem.cs                    |  19 ++
+ Assets/CPS/Game/HealthSystem.cs.meta               |   2 +
+ Assets/CPS/Game/InputStatistics.cs                 |  28 ++
+ Assets/CPS/Game/InputStatistics.cs.meta            |   2 +
+ Assets/CPS/Game/ScoreComboSystem.cs                |  63 ++++
+ Assets/CPS/Game/ScoreComboSystem.cs.meta           |   2 +
+ Assets/CPS/Game/SessionResult.cs                   |  62 ++++
+ Assets/CPS/Game/SessionResult.cs.meta              |   2 +
+ Assets/CPS/Tests.meta                              |   8 +
+ Assets/CPS/Tests/EditMode.meta                     |   8 +
+ Assets/CPS/Tests/EditMode/CPS.EditModeTests.asmdef |   7 +
+ .../Tests/EditMode/CPS.EditModeTests.asmdef.meta   |   7 +
+ Assets/CPS/Tests/EditMode/GameRulesTests.cs        | 333 +++++++++++++++++++++
+ Assets/CPS/Tests/EditMode/GameRulesTests.cs.meta   |   2 +
+ 22 files changed, 643 insertions(+)
+
+## Diff
+diff --git a/Assets/CPS.meta b/Assets/CPS.meta
+new file mode 100644
+index 0000000..4924827
+--- /dev/null
++++ b/Assets/CPS.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: cb8345f4a0346434d8b4d7c3db61d1b7
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/CPS.Runtime.asmdef b/Assets/CPS/CPS.Runtime.asmdef
+new file mode 100644
+index 0000000..90ef4e1
+--- /dev/null
++++ b/Assets/CPS/CPS.Runtime.asmdef
+@@ -0,0 +1,5 @@
++{
++    "name": "CPS.Runtime",
++    "rootNamespace": "CPS.KitchenCatch",
++    "references": ["Unity.InputSystem", "UnityEngine.UI"]
++}
+diff --git a/Assets/CPS/CPS.Runtime.asmdef.meta b/Assets/CPS/CPS.Runtime.asmdef.meta
+new file mode 100644
+index 0000000..c480b79
+--- /dev/null
++++ b/Assets/CPS/CPS.Runtime.asmdef.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: e5ad57e88f3bea34aa538fa9e41c6732
++AssemblyDefinitionImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Game.meta b/Assets/CPS/Game.meta
+new file mode 100644
+index 0000000..c021e6b
+--- /dev/null
++++ b/Assets/CPS/Game.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 0723b54e8b2d3c945ab13941240ca2e5
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Game/GameSessionModel.cs b/Assets/CPS/Game/GameSessionModel.cs
+new file mode 100644
+index 0000000..a331e85
+--- /dev/null
++++ b/Assets/CPS/Game/GameSessionModel.cs
+@@ -0,0 +1,57 @@
++using System;
++using System.Collections.Generic;
++
++namespace CPS.KitchenCatch
++{
++    public sealed class GameSessionModel
++    {
++        private const float DurationSeconds = 60;
++        private readonly HashSet<long> resolvedObjectIds = new HashSet<long>();
++
++        public SessionState State { get; private set; } = SessionState.Ready;
++        public float PlayedSeconds { get; private set; }
++        public float RemainingSeconds => DurationSeconds - PlayedSeconds;
++        public HealthSystem Health { get; } = new HealthSystem();
++        public ScoreComboSystem Score { get; } = new ScoreComboSystem();
++        public event Action<EndReason> Ended;
++
++        public void Start()
++        {
++            if (State != SessionState.Ready)
++                return;
++
++            Health.Reset(3);
++            Score.Reset();
++            State = SessionState.Playing;
++        }
++
++        public void Resolve(long objectId, ObjectKind kind, ObjectOutcome outcome, int points)
++        {
++            if (State != SessionState.Playing || !resolvedObjectIds.Add(objectId))
++                return;
++
++            Score.Resolve(kind, outcome, points);
++            if ((kind == ObjectKind.Food && outcome == ObjectOutcome.Missed) ||
++                (kind == ObjectKind.Trash && outcome == ObjectOutcome.Caught))
++                Health.Damage(1);
++        }
++
++        public void CompleteStep(float dt)
++        {
++            if (State != SessionState.Playing)
++                return;
++
++            PlayedSeconds += Math.Min(RemainingSeconds, Math.Max(0, dt));
++            if (Health.CurrentHp == 0)
++            {
++                State = SessionState.Dying;
++                Ended?.Invoke(EndReason.HpDepleted);
++            }
++            else if (RemainingSeconds <= 0)
++            {
++                State = SessionState.Triumph;
++                Ended?.Invoke(EndReason.Triumph);
++            }
++        }
++    }
++}
+diff --git a/Assets/CPS/Game/GameSessionModel.cs.meta b/Assets/CPS/Game/GameSessionModel.cs.meta
+new file mode 100644
+index 0000000..f27e980
+--- /dev/null
++++ b/Assets/CPS/Game/GameSessionModel.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 376c29529fffeb246aac06d7ffdfaee4
+\ No newline at end of file
+diff --git a/Assets/CPS/Game/GameTypes.cs b/Assets/CPS/Game/GameTypes.cs
+new file mode 100644
+index 0000000..bd6975b
+--- /dev/null
++++ b/Assets/CPS/Game/GameTypes.cs
+@@ -0,0 +1,9 @@
++namespace CPS.KitchenCatch
++{
++    public enum DifficultyId { Easy, Normal, Hard }
++    public enum SessionState { Ready, Playing, Triumph, Dying, Results }
++    public enum ObjectKind { Food, Trash }
++    public enum ObjectOutcome { Caught, Missed }
++    public enum ComboRank { D, C, B, A, S, SS, SSS }
++    public enum EndReason { Triumph, HpDepleted }
++}
+diff --git a/Assets/CPS/Game/GameTypes.cs.meta b/Assets/CPS/Game/GameTypes.cs.meta
+new file mode 100644
+index 0000000..b886b99
+--- /dev/null
++++ b/Assets/CPS/Game/GameTypes.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: a3c7efb08d491e84786d46e4ceec22f4
+\ No newline at end of file
+diff --git a/Assets/CPS/Game/HealthSystem.cs b/Assets/CPS/Game/HealthSystem.cs
+new file mode 100644
+index 0000000..e59763e
+--- /dev/null
++++ b/Assets/CPS/Game/HealthSystem.cs
+@@ -0,0 +1,19 @@
++using System;
++
++namespace CPS.KitchenCatch
++{
++    public sealed class HealthSystem
++    {
++        public int CurrentHp { get; private set; }
++
++        public void Reset(int initialHp)
++        {
++            CurrentHp = Math.Max(0, initialHp);
++        }
++
++        public void Damage(int amount)
++        {
++            CurrentHp = Math.Max(0, CurrentHp - Math.Max(0, amount));
++        }
++    }
++}
+diff --git a/Assets/CPS/Game/HealthSystem.cs.meta b/Assets/CPS/Game/HealthSystem.cs.meta
+new file mode 100644
+index 0000000..2b8413f
+--- /dev/null
++++ b/Assets/CPS/Game/HealthSystem.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 57e627ea34a3f8e4dbbb72f3383cf5dc
+\ No newline at end of file
+diff --git a/Assets/CPS/Game/InputStatistics.cs b/Assets/CPS/Game/InputStatistics.cs
+new file mode 100644
+index 0000000..4ba88d8
+--- /dev/null
++++ b/Assets/CPS/Game/InputStatistics.cs
+@@ -0,0 +1,28 @@
++using System;
++
++namespace CPS.KitchenCatch
++{
++    [Serializable]
++    public sealed class HandStatistics
++    {
++        public bool HasStrength;
++        public bool HasForce;
++        public float MaxStrength01;
++        public float MeanStrength01;
++        public float MaxForceN;
++        public float MeanForceN;
++        public float ValidDurationSeconds;
++        public float ForceValidDurationSeconds;
++        public float PressedDurationSeconds;
++    }
++
++    [Serializable]
++    public sealed class InputStatistics
++    {
++        public HandStatistics Left;
++        public HandStatistics Right;
++        public float BothPressedDurationSeconds;
++        public bool HasBalance;
++        public float LeftBalance01;
++    }
++}
+diff --git a/Assets/CPS/Game/InputStatistics.cs.meta b/Assets/CPS/Game/InputStatistics.cs.meta
+new file mode 100644
+index 0000000..5fa6574
+--- /dev/null
++++ b/Assets/CPS/Game/InputStatistics.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: ba4cc422c435ff94fb6a969707e4775e
+\ No newline at end of file
+diff --git a/Assets/CPS/Game/ScoreComboSystem.cs b/Assets/CPS/Game/ScoreComboSystem.cs
+new file mode 100644
+index 0000000..ad6ea6d
+--- /dev/null
++++ b/Assets/CPS/Game/ScoreComboSystem.cs
+@@ -0,0 +1,63 @@
++using System;
++
++namespace CPS.KitchenCatch
++{
++    public sealed class ScoreComboSystem
++    {
++        public int Score { get; private set; }
++        public int Streak { get; private set; }
++        public int MaxCombo { get; private set; }
++        public ComboRank HighestRank { get; private set; }
++        public int FoodCaught { get; private set; }
++        public int FoodMissed { get; private set; }
++        public int TrashEaten { get; private set; }
++
++        public ComboRank CurrentRank
++        {
++            get
++            {
++                if (Streak >= 12) return ComboRank.SSS;
++                if (Streak >= 8) return ComboRank.SS;
++                if (Streak >= 5) return ComboRank.S;
++                if (Streak >= 4) return ComboRank.A;
++                if (Streak >= 3) return ComboRank.B;
++                if (Streak >= 2) return ComboRank.C;
++                return ComboRank.D;
++            }
++        }
++
++        public void Reset()
++        {
++            Score = 0;
++            Streak = 0;
++            MaxCombo = 0;
++            HighestRank = ComboRank.D;
++            FoodCaught = 0;
++            FoodMissed = 0;
++            TrashEaten = 0;
++        }
++
++        public void Resolve(ObjectKind kind, ObjectOutcome outcome, int points)
++        {
++            if (kind == ObjectKind.Food && outcome == ObjectOutcome.Caught)
++            {
++                Score += points;
++                FoodCaught++;
++                Streak++;
++                MaxCombo = Math.Max(MaxCombo, Streak);
++                if (CurrentRank > HighestRank)
++                    HighestRank = CurrentRank;
++            }
++            else if (kind == ObjectKind.Food && outcome == ObjectOutcome.Missed)
++            {
++                FoodMissed++;
++                Streak = 0;
++            }
++            else if (kind == ObjectKind.Trash && outcome == ObjectOutcome.Caught)
++            {
++                TrashEaten++;
++                Streak = 0;
++            }
++        }
++    }
++}
+diff --git a/Assets/CPS/Game/ScoreComboSystem.cs.meta b/Assets/CPS/Game/ScoreComboSystem.cs.meta
+new file mode 100644
+index 0000000..535cd62
+--- /dev/null
++++ b/Assets/CPS/Game/ScoreComboSystem.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 979e46329797ce24c8b78d363bb371a4
+\ No newline at end of file
+diff --git a/Assets/CPS/Game/SessionResult.cs b/Assets/CPS/Game/SessionResult.cs
+new file mode 100644
+index 0000000..f5c6a85
+--- /dev/null
++++ b/Assets/CPS/Game/SessionResult.cs
+@@ -0,0 +1,62 @@
++using System;
++
++namespace CPS.KitchenCatch
++{
++    [Serializable]
++    public sealed class SessionResult
++    {
++        public int SchemaVersion = 1;
++        public string SessionId;
++        public string PlayerId;
++        public string DisplayName;
++        public string EndedAtUtc;
++        public string InputSource;
++        public DifficultyId Difficulty;
++        public EndReason EndReason;
++        public float PlayedSeconds;
++        public int Score;
++        public int RemainingHp;
++        public int FoodCaught;
++        public int FoodMissed;
++        public int TrashEaten;
++        public int MaxCombo;
++        public ComboRank HighestRank;
++        public InputStatistics InputStatistics;
++
++        public SessionResult Copy()
++        {
++            var copy = (SessionResult)MemberwiseClone();
++            if (InputStatistics != null)
++            {
++                copy.InputStatistics = new InputStatistics
++                {
++                    Left = CopyHand(InputStatistics.Left),
++                    Right = CopyHand(InputStatistics.Right),
++                    BothPressedDurationSeconds = InputStatistics.BothPressedDurationSeconds,
++                    HasBalance = InputStatistics.HasBalance,
++                    LeftBalance01 = InputStatistics.LeftBalance01
++                };
++            }
++            return copy;
++        }
++
++        private static HandStatistics CopyHand(HandStatistics hand)
++        {
++            if (hand == null)
++                return null;
++
++            return new HandStatistics
++            {
++                HasStrength = hand.HasStrength,
++                HasForce = hand.HasForce,
++                MaxStrength01 = hand.MaxStrength01,
++                MeanStrength01 = hand.MeanStrength01,
++                MaxForceN = hand.MaxForceN,
++                MeanForceN = hand.MeanForceN,
++                ValidDurationSeconds = hand.ValidDurationSeconds,
++                ForceValidDurationSeconds = hand.ForceValidDurationSeconds,
++                PressedDurationSeconds = hand.PressedDurationSeconds
++            };
++        }
++    }
++}
+diff --git a/Assets/CPS/Game/SessionResult.cs.meta b/Assets/CPS/Game/SessionResult.cs.meta
+new file mode 100644
+index 0000000..df91187
+--- /dev/null
++++ b/Assets/CPS/Game/SessionResult.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 187ffe5eaec3931419a8de9201c8111b
+\ No newline at end of file
+diff --git a/Assets/CPS/Tests.meta b/Assets/CPS/Tests.meta
+new file mode 100644
+index 0000000..2b33ae7
+--- /dev/null
++++ b/Assets/CPS/Tests.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 3c86155be7b684e42899ca9cab28b089
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Tests/EditMode.meta b/Assets/CPS/Tests/EditMode.meta
+new file mode 100644
+index 0000000..cbe6b05
+--- /dev/null
++++ b/Assets/CPS/Tests/EditMode.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: f232b6c8b9b10494abaeeaa84deab99a
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Tests/EditMode/CPS.EditModeTests.asmdef b/Assets/CPS/Tests/EditMode/CPS.EditModeTests.asmdef
+new file mode 100644
+index 0000000..340f710
+--- /dev/null
++++ b/Assets/CPS/Tests/EditMode/CPS.EditModeTests.asmdef
+@@ -0,0 +1,7 @@
++{
++    "name": "CPS.EditModeTests",
++    "rootNamespace": "CPS.KitchenCatch.Tests",
++    "references": ["CPS.Runtime"],
++    "includePlatforms": ["Editor"],
++    "optionalUnityReferences": ["TestAssemblies"]
++}
+diff --git a/Assets/CPS/Tests/EditMode/CPS.EditModeTests.asmdef.meta b/Assets/CPS/Tests/EditMode/CPS.EditModeTests.asmdef.meta
+new file mode 100644
+index 0000000..6bda243
+--- /dev/null
++++ b/Assets/CPS/Tests/EditMode/CPS.EditModeTests.asmdef.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: e4d5867829af64d45bb6fbd2f670bef7
++AssemblyDefinitionImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Tests/EditMode/GameRulesTests.cs b/Assets/CPS/Tests/EditMode/GameRulesTests.cs
+new file mode 100644
+index 0000000..529f546
+--- /dev/null
++++ b/Assets/CPS/Tests/EditMode/GameRulesTests.cs
+@@ -0,0 +1,333 @@
++using NUnit.Framework;
++using UnityEngine;
++
++namespace CPS.KitchenCatch.Tests
++{
++    public sealed class GameRulesTests
++    {
++        [Test]
++        public void FoodPointsAre10_15_20()
++        {
++            var score = new ScoreComboSystem();
++            score.Reset();
++            score.Resolve(ObjectKind.Food, ObjectOutcome.Caught, 10);
++            score.Resolve(ObjectKind.Food, ObjectOutcome.Caught, 15);
++            score.Resolve(ObjectKind.Food, ObjectOutcome.Caught, 20);
++            int scoreAfterAppleBreadCake = score.Score;
++            Assert.That(scoreAfterAppleBreadCake, Is.EqualTo(45));
++            Assert.That(score.FoodCaught, Is.EqualTo(3));
++        }
++
++        [Test]
++        public void TrashMissIsHarmless()
++        {
++            var model = StartedModel();
++            model.Resolve(1, ObjectKind.Food, ObjectOutcome.Caught, 10);
++            model.Resolve(2, ObjectKind.Trash, ObjectOutcome.Missed, 99);
++            Assert.That(model.Health.CurrentHp, Is.EqualTo(3));
++            Assert.That(model.Score.Score, Is.EqualTo(10));
++            Assert.That(model.Score.Streak, Is.EqualTo(1));
++            Assert.That(model.Score.TrashEaten, Is.Zero);
++            Assert.That(model.Score.FoodMissed, Is.Zero);
++        }
++
++        [Test]
++        public void DamageClampsAtZero()
++        {
++            var health = new HealthSystem();
++            health.Reset(3);
++            health.Damage(1);
++            Assert.That(health.CurrentHp, Is.EqualTo(2));
++            health.Damage(10);
++            health.Damage(1);
++            Assert.That(health.CurrentHp, Is.Zero);
++            health.Reset(3);
++            Assert.That(health.CurrentHp, Is.EqualTo(3));
++        }
++
++        [Test]
++        public void DuplicateObjectIdIsIgnored()
++        {
++            var model = StartedModel();
++            model.Resolve(42, ObjectKind.Food, ObjectOutcome.Caught, 15);
++            model.CompleteStep(1);
++            model.Resolve(42, ObjectKind.Food, ObjectOutcome.Missed, 15);
++            Assert.That(model.Score.Score, Is.EqualTo(15));
++            Assert.That(model.Score.FoodCaught, Is.EqualTo(1));
++            Assert.That(model.Score.FoodMissed, Is.Zero);
++            Assert.That(model.Health.CurrentHp, Is.EqualTo(3));
++        }
++
++        [Test]
++        public void ComboThresholdsAndReset()
++        {
++            var score = new ScoreComboSystem();
++            score.Reset();
++            var ranksAtStreaks2_3_4_5_8_12 = new ComboRank[6];
++            int rankIndex = 0;
++            for (int streak = 1; streak <= 12; streak++)
++            {
++                score.Resolve(ObjectKind.Food, ObjectOutcome.Caught, 10);
++                if (streak == 2 || streak == 3 || streak == 4 || streak == 5 || streak == 8 || streak == 12)
++                    ranksAtStreaks2_3_4_5_8_12[rankIndex++] = score.CurrentRank;
++            }
++            Assert.That(ranksAtStreaks2_3_4_5_8_12, Is.EqualTo(new[] { ComboRank.C, ComboRank.B, ComboRank.A, ComboRank.S, ComboRank.SS, ComboRank.SSS }));
++            score.Resolve(ObjectKind.Food, ObjectOutcome.Missed, 10);
++            Assert.That(score.Streak, Is.Zero);
++            Assert.That(score.CurrentRank, Is.EqualTo(ComboRank.D));
++            Assert.That(score.MaxCombo, Is.EqualTo(12));
++            Assert.That(score.HighestRank, Is.EqualTo(ComboRank.SSS));
++            Assert.That(score.Score, Is.EqualTo(120));
++            Assert.That(score.FoodMissed, Is.EqualTo(1));
++            score.Reset();
++            Assert.That(score.Score, Is.Zero);
++            Assert.That(score.FoodCaught, Is.Zero);
++            Assert.That(score.FoodMissed, Is.Zero);
++            Assert.That(score.TrashEaten, Is.Zero);
++            Assert.That(score.Streak, Is.Zero);
++            Assert.That(score.MaxCombo, Is.Zero);
++            Assert.That(score.HighestRank, Is.EqualTo(ComboRank.D));
++        }
++
++        [TestCase(0, ComboRank.D)]
++        [TestCase(1, ComboRank.D)]
++        [TestCase(2, ComboRank.C)]
++        [TestCase(3, ComboRank.B)]
++        [TestCase(4, ComboRank.A)]
++        [TestCase(5, ComboRank.S)]
++        [TestCase(7, ComboRank.S)]
++        [TestCase(8, ComboRank.SS)]
++        [TestCase(11, ComboRank.SS)]
++        [TestCase(12, ComboRank.SSS)]
++        [TestCase(13, ComboRank.SSS)]
++        public void RankBoundary(int streak, ComboRank expected)
++        {
++            var score = new ScoreComboSystem();
++            score.Reset();
++            for (int i = 0; i < streak; i++)
++                score.Resolve(ObjectKind.Food, ObjectOutcome.Caught, 10);
++            Assert.That(score.CurrentRank, Is.EqualTo(expected));
++            Assert.That(score.HighestRank, Is.EqualTo(expected));
++        }
++
++        [TestCase(ObjectKind.Food, ObjectOutcome.Missed)]
++        [TestCase(ObjectKind.Trash, ObjectOutcome.Caught)]
++        public void HarmfulOutcomeDamagesOnceAndResetsCombo(ObjectKind kind, ObjectOutcome outcome)
++        {
++            var model = StartedModel();
++            model.Resolve(1, ObjectKind.Food, ObjectOutcome.Caught, 20);
++            model.Resolve(2, ObjectKind.Food, ObjectOutcome.Caught, 20);
++            model.Resolve(3, kind, outcome, 99);
++            model.Resolve(3, kind, outcome, 99);
++            Assert.That(model.Health.CurrentHp, Is.EqualTo(2));
++            Assert.That(model.Score.Streak, Is.Zero);
++            Assert.That(model.Score.Score, Is.EqualTo(40));
++            Assert.That(model.Score.MaxCombo, Is.EqualTo(2));
++            Assert.That(model.Score.HighestRank, Is.EqualTo(ComboRank.C));
++            Assert.That(model.Score.FoodMissed, Is.EqualTo(kind == ObjectKind.Food ? 1 : 0));
++            Assert.That(model.Score.TrashEaten, Is.EqualTo(kind == ObjectKind.Trash ? 1 : 0));
++        }
++
++        [Test]
++        public void DeathWinsAtDeadline()
++        {
++            var model = StartedModel();
++            EndReason? reason = null;
++            model.Ended += value => reason = value;
++            model.CompleteStep(59);
++            model.Resolve(1, ObjectKind.Food, ObjectOutcome.Missed, 10);
++            model.Resolve(2, ObjectKind.Trash, ObjectOutcome.Caught, 0);
++            model.Resolve(3, ObjectKind.Food, ObjectOutcome.Missed, 10);
++            Assert.That(model.State, Is.EqualTo(SessionState.Playing));
++            model.CompleteStep(1);
++            Assert.That(model.PlayedSeconds, Is.EqualTo(60).Within(0.001));
++            Assert.That(model.State, Is.EqualTo(SessionState.Dying));
++            Assert.That(reason, Is.EqualTo(EndReason.HpDepleted));
++        }
++
++        [Test]
++        public void LargeDtStopsAt60()
++        {
++            var model = StartedModel();
++            model.CompleteStep(59.5f);
++            Assert.That(model.RemainingSeconds, Is.EqualTo(0.5f).Within(0.001));
++            model.CompleteStep(5);
++            Assert.That(model.PlayedSeconds, Is.EqualTo(60).Within(0.001));
++            Assert.That(model.RemainingSeconds, Is.Zero);
++            Assert.That(model.State, Is.EqualTo(SessionState.Triumph));
++        }
++
++        [TestCase(false)]
++        [TestCase(true)]
++        public void TerminalEventOnce(bool depleteHp)
++        {
++            var model = StartedModel();
++            int endedCount = 0;
++            EndReason? reason = null;
++            model.Ended += value => { endedCount++; reason = value; };
++            if (depleteHp)
++                for (int i = 1; i <= 3; i++)
++                    model.Resolve(i, ObjectKind.Trash, ObjectOutcome.Caught, 0);
++            model.CompleteStep(60);
++            model.CompleteStep(1);
++            model.Start();
++            model.CompleteStep(60);
++            Assert.That(endedCount, Is.EqualTo(1));
++            Assert.That(reason, Is.EqualTo(depleteHp ? EndReason.HpDepleted : EndReason.Triumph));
++        }
++
++        [TestCase(false)]
++        [TestCase(true)]
++        public void TerminalRejectsFurtherOutcomes(bool depleteHp)
++        {
++            var model = StartedModel();
++            model.Resolve(1, ObjectKind.Food, ObjectOutcome.Caught, 10);
++            if (depleteHp)
++                for (int i = 2; i <= 4; i++)
++                    model.Resolve(i, ObjectKind.Trash, ObjectOutcome.Caught, 0);
++            model.CompleteStep(60);
++            model.Resolve(100, ObjectKind.Food, ObjectOutcome.Caught, 20);
++            model.Resolve(101, ObjectKind.Food, ObjectOutcome.Missed, 20);
++            Assert.That(model.Score.Score, Is.EqualTo(10));
++            Assert.That(model.Score.FoodCaught, Is.EqualTo(1));
++            Assert.That(model.Score.FoodMissed, Is.Zero);
++            Assert.That(model.Health.CurrentHp, Is.EqualTo(depleteHp ? 0 : 3));
++            Assert.That(model.PlayedSeconds, Is.EqualTo(60));
++        }
++
++        [Test]
++        public void ReadyAndRepeatedStartAreGuarded()
++        {
++            var model = new GameSessionModel();
++            Assert.That(model.State, Is.EqualTo(SessionState.Ready));
++            model.Resolve(1, ObjectKind.Food, ObjectOutcome.Caught, 10);
++            model.CompleteStep(20);
++            Assert.That(model.PlayedSeconds, Is.Zero);
++            Assert.That(model.Score.Score, Is.Zero);
++            model.Start();
++            model.Resolve(1, ObjectKind.Food, ObjectOutcome.Caught, 10);
++            model.CompleteStep(2);
++            model.Start();
++            Assert.That(model.State, Is.EqualTo(SessionState.Playing));
++            Assert.That(model.PlayedSeconds, Is.EqualTo(2));
++            Assert.That(model.Score.Score, Is.EqualTo(10));
++        }
++
++        [Test]
++        public void ResultCopyDoesNotShareStatistics()
++        {
++            var original = ResultFixture();
++            var copy = original.Copy();
++            AssertResultFixture(copy);
++            Assert.That(copy.InputStatistics, Is.Not.SameAs(original.InputStatistics));
++            Assert.That(copy.InputStatistics.Left, Is.Not.SameAs(original.InputStatistics.Left));
++            Assert.That(copy.InputStatistics.Right, Is.Not.SameAs(original.InputStatistics.Right));
++            copy.Score = -1;
++            copy.DisplayName = "Changed";
++            copy.InputStatistics.Left.MaxStrength01 = 0;
++            copy.InputStatistics.Right.MaxForceN = 0;
++            copy.InputStatistics.BothPressedDurationSeconds = 0;
++            AssertResultFixture(original);
++        }
++
++        [Test]
++        public void ResultCopyPreservesUnavailableStatistics()
++        {
++            var original = new SessionResult();
++            var copy = original.Copy();
++            Assert.That(copy.SchemaVersion, Is.EqualTo(1));
++            Assert.That(copy.InputStatistics, Is.Null);
++            original.InputStatistics = new InputStatistics { Left = new HandStatistics() };
++            copy = original.Copy();
++            Assert.That(copy.InputStatistics.Right, Is.Null);
++            Assert.That(copy.InputStatistics.Left.HasForce, Is.False);
++            Assert.That(copy.InputStatistics.Left.MaxForceN, Is.Zero);
++            Assert.That(copy.InputStatistics.Left.MeanForceN, Is.Zero);
++        }
++
++        [Test]
++        public void ResultJsonRoundTripsAllFields()
++        {
++            var copy = ResultFixture().Copy();
++            var restored = JsonUtility.FromJson<SessionResult>(JsonUtility.ToJson(copy));
++            AssertResultFixture(restored);
++        }
++
++        private static GameSessionModel StartedModel()
++        {
++            var model = new GameSessionModel();
++            model.Start();
++            return model;
++        }
++
++        private static SessionResult ResultFixture()
++        {
++            return new SessionResult
++            {
++                SessionId = "session-1", PlayerId = "player-2", DisplayName = "Chef",
++                EndedAtUtc = "2026-10-08T01:02:03Z", InputSource = "hardware",
++                Difficulty = DifficultyId.Hard, EndReason = EndReason.HpDepleted,
++                PlayedSeconds = 42.5f, Score = 145, RemainingHp = 0,
++                FoodCaught = 10, FoodMissed = 2, TrashEaten = 1, MaxCombo = 8,
++                HighestRank = ComboRank.SS,
++                InputStatistics = new InputStatistics
++                {
++                    Left = new HandStatistics
++                    {
++                        HasStrength = true, HasForce = true, MaxStrength01 = 0.8f,
++                        MeanStrength01 = 0.4f, MaxForceN = 12, MeanForceN = 6,
++                        ValidDurationSeconds = 40, ForceValidDurationSeconds = 30,
++                        PressedDurationSeconds = 20
++                    },
++                    Right = new HandStatistics
++                    {
++                        HasStrength = true, HasForce = true, MaxStrength01 = 0.9f,
++                        MeanStrength01 = 0.5f, MaxForceN = 14, MeanForceN = 7,
++                        ValidDurationSeconds = 39, ForceValidDurationSeconds = 29,
++                        PressedDurationSeconds = 19
++                    },
++                    BothPressedDurationSeconds = 10, HasBalance = true, LeftBalance01 = 0.45f
++                }
++            };
++        }
++
++        private static void AssertResultFixture(SessionResult result)
++        {
++            Assert.That(result.SchemaVersion, Is.EqualTo(1));
++            Assert.That(result.SessionId, Is.EqualTo("session-1"));
++            Assert.That(result.PlayerId, Is.EqualTo("player-2"));
++            Assert.That(result.DisplayName, Is.EqualTo("Chef"));
++            Assert.That(result.EndedAtUtc, Is.EqualTo("2026-10-08T01:02:03Z"));
++            Assert.That(result.InputSource, Is.EqualTo("hardware"));
++            Assert.That(result.Difficulty, Is.EqualTo(DifficultyId.Hard));
++            Assert.That(result.EndReason, Is.EqualTo(EndReason.HpDepleted));
++            Assert.That(result.PlayedSeconds, Is.EqualTo(42.5f));
++            Assert.That(result.Score, Is.EqualTo(145));
++            Assert.That(result.RemainingHp, Is.Zero);
++            Assert.That(result.FoodCaught, Is.EqualTo(10));
++            Assert.That(result.FoodMissed, Is.EqualTo(2));
++            Assert.That(result.TrashEaten, Is.EqualTo(1));
++            Assert.That(result.MaxCombo, Is.EqualTo(8));
++            Assert.That(result.HighestRank, Is.EqualTo(ComboRank.SS));
++            Assert.That(result.InputStatistics.BothPressedDurationSeconds, Is.EqualTo(10));
++            Assert.That(result.InputStatistics.HasBalance, Is.True);
++            Assert.That(result.InputStatistics.LeftBalance01, Is.EqualTo(0.45f));
++            AssertHandFixture(result.InputStatistics.Left, 0.8f, 0.4f, 12, 6, 40, 30, 20);
++            AssertHandFixture(result.InputStatistics.Right, 0.9f, 0.5f, 14, 7, 39, 29, 19);
++        }
++
++        private static void AssertHandFixture(HandStatistics hand, float maxStrength, float meanStrength,
++            float maxForce, float meanForce, float validDuration, float forceDuration, float pressedDuration)
++        {
++            Assert.That(hand.HasStrength, Is.True);
++            Assert.That(hand.HasForce, Is.True);
++            Assert.That(hand.MaxStrength01, Is.EqualTo(maxStrength));
++            Assert.That(hand.MeanStrength01, Is.EqualTo(meanStrength));
++            Assert.That(hand.MaxForceN, Is.EqualTo(maxForce));
++            Assert.That(hand.MeanForceN, Is.EqualTo(meanForce));
++            Assert.That(hand.ValidDurationSeconds, Is.EqualTo(validDuration));
++            Assert.That(hand.ForceValidDurationSeconds, Is.EqualTo(forceDuration));
++            Assert.That(hand.PressedDurationSeconds, Is.EqualTo(pressedDuration));
++        }
++    }
++}
+diff --git a/Assets/CPS/Tests/EditMode/GameRulesTests.cs.meta b/Assets/CPS/Tests/EditMode/GameRulesTests.cs.meta
+new file mode 100644
+index 0000000..1a667d9
+--- /dev/null
++++ b/Assets/CPS/Tests/EditMode/GameRulesTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 6d410fbff6c61da4abddbe32c6fe6c06
+\ No newline at end of file

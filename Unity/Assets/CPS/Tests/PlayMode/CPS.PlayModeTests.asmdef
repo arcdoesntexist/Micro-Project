@@ -1,0 +1,6 @@
+{
+    "name": "CPS.PlayModeTests",
+    "rootNamespace": "CPS.KitchenCatch.Tests",
+    "references": ["CPS.Runtime", "Unity.InputSystem", "Unity.InputSystem.TestFramework"],
+    "optionalUnityReferences": ["TestAssemblies"]
+}

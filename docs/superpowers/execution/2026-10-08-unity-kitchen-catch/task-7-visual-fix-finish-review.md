@@ -1,0 +1,13 @@
+## verdict
+
+Visual fix review round 1 of at most 2. Read-only HEAD verification matched `9f72081bdff5a1990596274e9f87e1b390713264`. Opened all five actual final PNGs in `verification/task7-visual-fix-captures`; their dimensions, content and complete frames match their names. Read the prior review, latest implementation report, PRODUCT.md, Unity UI direction, approved specification and combo reference. Compared the prior five-item diagnostic directly. Unrelated states retain the prior review's accepted evidence; no new full-surface inspection is claimed.
+
+1. **Rank identity and separation — resolved.** The D gameplay captures show an emphatic cream, cocoa-outlined rank mark beside its name on a muted plate. The SSS diagnostic visibly escalates to a saturated teal plate, a distinct three-letter mark and three stepped yellow accents; the rank is now a graphic hierarchy rather than the former uniform `RANK SSS` notification. This is an acceptable compact translation of the approved rank reference under the explicit edge-placement and temporary-font allowances. The badge remains within the same 195×70 footprint, the complete `Supreme Chef!` name is legible, and the separate callout and badge cover none of the five runtime items. D and SSS establish the visible escalation endpoints; this capture packet does not independently show each intermediate rank or prove moving overlap/timing.
+2. **Banana contour — resolved.** The diagnostic now shows the complete upward-curling right endpoint and continuous dark perimeter where the prior capture ended in a vertical cut. The peel remains recognizably the same scale and staging, with no neighboring sprite fragments or visible bleed.
+3. **Menu/gameplay text rendering — resolved.** Both 1920×1080 and 1280×720 menu and gameplay captures have clean, consistent letter edges. Profile, timer, difficulty, hand labels and input-source text no longer show the prior fuzzy rendering; the same temporary font retains its existing hierarchy. Menu controls, instructions and lower disclosure remain legible without clipping at both sizes.
+
+## remaining
+
+Clear for the three scored fixes. No material regression introduced by this fix batch is visible in the five captures. Ship covers the three scored fixes, not the whole surface. User-selected font/licensing/Thai shaping, audio, browser interaction/performance and animation timing remain pending as previously recorded; these static captures do not close those acceptance boundaries. Preserve the warm raster kitchen, mascot/IoTE identity, clear central falling field and fixed-16:9 layout.
+
+disposition: ship

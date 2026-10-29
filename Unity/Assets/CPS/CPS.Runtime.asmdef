@@ -1,0 +1,5 @@
+{
+    "name": "CPS.Runtime",
+    "rootNamespace": "CPS.KitchenCatch",
+    "references": ["Unity.InputSystem", "UnityEngine.UI", "Unity.Newtonsoft.Json"]
+}

@@ -1,0 +1,212 @@
+# Review package: 78eaf9fc67d62baf43c1474fb44f618bc5aecb27..455c6d4880541667df2755a60af22d7493b68a70
+
+## Commits
+455c6d4 fix: validate lanes against configured player bounds
+
+## Files changed
+ Assets/CPS/Input/PlayerController.cs             |  5 ++-
+ Assets/CPS/Objects/FallingObjectSpawner.cs       |  8 +++++
+ Assets/CPS/Tests/PlayMode/FallingObjectTests.cs  | 44 ++++++++++++++++++++++++
+ Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs | 17 +++++++++
+ 4 files changed, 73 insertions(+), 1 deletion(-)
+
+## Diff
+diff --git a/Assets/CPS/Input/PlayerController.cs b/Assets/CPS/Input/PlayerController.cs
+index 9345b47..20b6156 100644
+--- a/Assets/CPS/Input/PlayerController.cs
++++ b/Assets/CPS/Input/PlayerController.cs
+@@ -5,34 +5,37 @@ namespace CPS.KitchenCatch
+     public sealed class PlayerController : MonoBehaviour
+     {
+         private const float MoveSpeed = 7;
+         private const float FieldHalfWidth = 8;
+ 
+         [SerializeField, Min(0)] private float mascotHalfWidth = 0.5f;
+         [SerializeField] private Vector3 catchZoneOffset = new Vector3(0, 0.5f, 0);
+         [SerializeField] private Vector3 catchZoneHalfExtents = new Vector3(0.75f, 0.25f, 0.1f);
+ 
+         public int MovementDirection { get; private set; }
++        private float MovementLimit => FieldHalfWidth - Mathf.Clamp(mascotHalfWidth, 0, FieldHalfWidth);
++        public Vector2 ReachableCatchCenterRange =>
++            new Vector2(catchZoneOffset.x - MovementLimit, catchZoneOffset.x + MovementLimit);
+         public Bounds CatchZone => new Bounds(transform.position + catchZoneOffset,
+             new Vector3(Mathf.Abs(catchZoneHalfExtents.x), Mathf.Abs(catchZoneHalfExtents.y),
+                 Mathf.Abs(catchZoneHalfExtents.z)) * 2);
+ 
+         public void Step(InputSnapshot input, float dt)
+         {
+             MovementDirection = 0;
+             if (float.IsNaN(dt) || float.IsInfinity(dt) || dt <= 0)
+                 return;
+ 
+             bool left = input.Left.Valid && input.Left.Pressed;
+             bool right = input.Right.Valid && input.Right.Pressed;
+             MovementDirection = (right ? 1 : 0) - (left ? 1 : 0);
+-            float limit = FieldHalfWidth - Mathf.Clamp(mascotHalfWidth, 0, FieldHalfWidth);
++            float limit = MovementLimit;
+             var position = transform.position;
+             position.x = Mathf.Clamp(position.x + MovementDirection * MoveSpeed * dt, -limit, limit);
+             transform.position = position;
+         }
+ 
+         public void ResetPosition()
+         {
+             var position = transform.position;
+             position.x = 0;
+             transform.position = position;
+diff --git a/Assets/CPS/Objects/FallingObjectSpawner.cs b/Assets/CPS/Objects/FallingObjectSpawner.cs
+index 7ce9b3b..9b5ada1 100644
+--- a/Assets/CPS/Objects/FallingObjectSpawner.cs
++++ b/Assets/CPS/Objects/FallingObjectSpawner.cs
+@@ -26,20 +26,28 @@ public string GetValidationError(DifficultyConfig difficulty)
+         {
+             if (player == null) return "FallingObjectSpawner player reference is missing.";
+             if (prefab == null) return "FallingObjectSpawner prefab reference is missing.";
+             if (difficulty == null) return "Difficulty config is missing.";
+             try { difficulty.Validate(); } catch (ArgumentException error) { return error.Message; }
+             if (!DefinitionsValid(foodDefinitions, 3, ObjectKind.Food)) return "Three food definitions are required.";
+             if (!DefinitionsValid(trashDefinitions, 2, ObjectKind.Trash)) return "Two trash definitions are required.";
+             var bounds = player.CatchZone;
+             if (!Finite(bounds.center) || !Finite(bounds.extents) || bounds.extents.y >= 7)
+                 return "Catch zone must be finite with half-height smaller than spawn distance.";
++            var range = player.ReachableCatchCenterRange;
++            if (float.IsNaN(range.x) || float.IsInfinity(range.x) || float.IsNaN(range.y) || float.IsInfinity(range.y))
++                return "Player movement bounds must be finite.";
++            if (range.x + range.y != 0)
++                return "Catch zone horizontal offset must be zero for centered spawn paths.";
++            foreach (float lane in difficulty.lanes)
++                if (lane < range.x || lane > range.y)
++                    return "Spawn lane is outside the player's reachable catcher-center range.";
+             return null;
+         }
+ 
+         private static bool Finite(Vector3 value) =>
+             !float.IsNaN(value.x) && !float.IsInfinity(value.x) &&
+             !float.IsNaN(value.y) && !float.IsInfinity(value.y) &&
+             !float.IsNaN(value.z) && !float.IsInfinity(value.z);
+ 
+         private static bool DefinitionsValid(FallingObjectDefinition[] definitions, int count, ObjectKind kind)
+         {
+diff --git a/Assets/CPS/Tests/PlayMode/FallingObjectTests.cs b/Assets/CPS/Tests/PlayMode/FallingObjectTests.cs
+index d87a998..53d07f3 100644
+--- a/Assets/CPS/Tests/PlayMode/FallingObjectTests.cs
++++ b/Assets/CPS/Tests/PlayMode/FallingObjectTests.cs
+@@ -128,20 +128,64 @@ public void ActiveObjectsStayBoundedAndClearDuringOutcomeCallbackIsSafe()
+             config.lanes = new[] { 0f }; config.interval = 0.0001f;
+             config.speed = 0.1f;
+             Set(player, "catchZoneHalfExtents", new Vector3(0.75f, 0, 0.1f));
+             spawner.Begin(config, (id, definition, outcome) => spawner.StopAndClear());
+             for (int i = 0; i < 30; i++) spawner.Step(0.1f);
+             Assert.That(spawner.ActiveCount, Is.EqualTo(16));
+             spawner.Step(100);
+             Assert.That(spawner.ActiveCount, Is.Zero);
+         }
+ 
++        [Test]
++        public void WiderMascotRejectsImpossibleAuthoredLaneBeforeBegin()
++        {
++            var spawner = CreateSpawner(out var config, out var player);
++            Set(player, "mascotHalfWidth", 3f);
++            player.Step(new InputSnapshot(default, new HandInput(true, 1, true, null), "Test"), 10);
++            Assert.That(player.transform.position.x, Is.EqualTo(5));
++            Assert.That(player.CatchZone.max.x, Is.EqualTo(5.75f));
++            Assert.That(spawner.GetValidationError(config), Is.Not.Null);
++            Assert.That(spawner.GetValidationError(config), Does.Contain("lane"));
++            Assert.Throws<System.InvalidOperationException>(() => spawner.Begin(config, (id, definition, outcome) => { }));
++            Assert.That(spawner.ActiveCount, Is.Zero);
++        }
++
++        [Test]
++        public void LaneInsideCatcherCoverageButOutsideCenteredPathIsRejected()
++        {
++            var spawner = CreateSpawner(out var config, out var player);
++            Set(player, "mascotHalfWidth", 3f);
++            config.lanes = new[] { 5.5f };
++            Assert.That(spawner.GetValidationError(config), Is.Not.Null);
++            Assert.That(spawner.GetValidationError(config), Does.Contain("lane"));
++            config.lanes = new[] { -5f, 5f };
++            Assert.That(spawner.GetValidationError(config), Is.Null);
++        }
++
++        [TestCase(-1f)] [TestCase(1f)]
++        public void UnsupportedHorizontalCatcherOffsetIsRejected(float offset)
++        {
++            var spawner = CreateSpawner(out var config, out var player);
++            Set(player, "catchZoneOffset", new Vector3(offset, 0.5f, 0));
++            Assert.That(spawner.GetValidationError(config), Is.Not.Null);
++            Assert.That(spawner.GetValidationError(config), Does.Contain("horizontal offset"));
++        }
++
++        [Test]
++        public void NonfinitePlayerMovementRangeIsRejected()
++        {
++            var spawner = CreateSpawner(out var config, out var player);
++            Set(player, "mascotHalfWidth", float.NaN);
++            Assert.That(spawner.GetValidationError(config), Is.Not.Null);
++            Assert.That(spawner.GetValidationError(config), Does.Contain("movement bounds"));
++        }
++
+         private FallingObjectSpawner CreateSpawner(out DifficultyConfig config, out PlayerController player)
+         {
+             var spawner = Own(new GameObject("Spawner")).AddComponent<FallingObjectSpawner>();
+             player = Own(new GameObject("Player")).AddComponent<PlayerController>();
+             config = Own(ScriptableObject.CreateInstance<DifficultyConfig>());
+             config.difficulty = DifficultyId.Easy; config.speed = 2; config.interval = 1.4f;
+             config.lanes = new[] { -6f, 0, 6 };
+             var trash = Own(ScriptableObject.CreateInstance<FallingObjectDefinition>()); trash.kind = ObjectKind.Trash;
+             Set(spawner, "player", player); Set(spawner, "prefab", falling);
+             Set(spawner, "foodDefinitions", new[] { food, food, food });
+diff --git a/Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs b/Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs
+index 5872053..966625d 100644
+--- a/Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs
++++ b/Assets/CPS/Tests/PlayMode/KeyboardPlayerTests.cs
+@@ -1,11 +1,12 @@
+ using NUnit.Framework;
++using System.Reflection;
+ using UnityEngine;
+ using UnityEngine.InputSystem;
+ using UnityEngine.InputSystem.LowLevel;
+ 
+ namespace CPS.KitchenCatch.Tests
+ {
+     public sealed class KeyboardPlayerTests : InputTestFixture
+     {
+         private GameObject playerObject;
+         private KeyboardInput keyboardInput;
+@@ -123,20 +124,36 @@ public void CatchZoneTracksPositionWithoutFacingOrScaleChanges()
+             var before = player.CatchZone;
+             Assert.That(before.center, Is.EqualTo(new Vector3(2, -2.5f, 0)));
+             Assert.That(before.size, Is.EqualTo(new Vector3(1.5f, 0.5f, 0.2f)));
+             player.transform.localScale = new Vector3(-2, 3, 1);
+             player.transform.rotation = Quaternion.Euler(0, 0, 20);
+             Assert.That(player.CatchZone, Is.EqualTo(before));
+             player.transform.position += Vector3.right;
+             Assert.That(player.CatchZone.center.x, Is.EqualTo(3));
+         }
+ 
++        [TestCase(0.5f, 7.5f)] [TestCase(3f, 5f)] [TestCase(9f, 0f)] [TestCase(-1f, 8f)]
++        public void ReachableCatcherCenterRangeMatchesConfiguredClampsAndOffset(float width, float limit)
++        {
++            typeof(PlayerController).GetField("mascotHalfWidth", BindingFlags.Instance | BindingFlags.NonPublic)
++                .SetValue(player, width);
++            typeof(PlayerController).GetField("catchZoneOffset", BindingFlags.Instance | BindingFlags.NonPublic)
++                .SetValue(player, new Vector3(1, 0.5f, 0));
++            Assert.That(player.ReachableCatchCenterRange, Is.EqualTo(new Vector2(1 - limit, 1 + limit)));
++            QueueKeys(false, true);
++            player.Step(keyboardInput.Read(), 10);
++            Assert.That(player.CatchZone.center.x, Is.EqualTo(1 + limit));
++            QueueKeys(true, false);
++            player.Step(keyboardInput.Read(), 10);
++            Assert.That(player.CatchZone.center.x, Is.EqualTo(1 - limit));
++        }
++
+         [Test]
+         public void InvalidHandAndInvalidDurationDoNotMovePlayer()
+         {
+             var invalid = new HandInput(true, 1, false, null);
+             player.Step(new InputSnapshot(invalid, default, "Test"), 1);
+             QueueKeys(false, true);
+             foreach (float dt in new[] { -1f, 0f, float.NaN, float.PositiveInfinity })
+                 player.Step(keyboardInput.Read(), dt);
+             Assert.That(player.transform.position.x, Is.Zero);
+         }

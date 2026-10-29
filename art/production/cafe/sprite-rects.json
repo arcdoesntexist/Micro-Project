@@ -1,0 +1,12 @@
+{
+  "texture": "cafe-props-atlas-v1.png",
+  "textureSize": [1536, 1024],
+  "sprites": [
+    {"name":"Curtain","imageRect":[83,36,377,527],"unityRect":[83,461,377,527],"pivot":[0.5,1.0]},
+    {"name":"PendantLamp","imageRect":[617,44,303,484],"unityRect":[617,496,303,484],"pivot":[0.5,1.0]},
+    {"name":"HangingIvy","imageRect":[1104,37,369,586],"unityRect":[1104,401,369,586],"pivot":[0.5,1.0]},
+    {"name":"CoffeeCup","imageRect":[91,729,324,212],"unityRect":[91,83,324,212],"pivot":[0.5,0.0]},
+    {"name":"PottedFern","imageRect":[563,604,400,362],"unityRect":[563,58,400,362],"pivot":[0.5,0.0]},
+    {"name":"Cookbooks","imageRect":[1063,716,441,242],"unityRect":[1063,66,441,242],"pivot":[0.5,0.0]}
+  ]
+}

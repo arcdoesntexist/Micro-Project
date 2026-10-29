@@ -1,0 +1,714 @@
+# Review package: 43faf730df1887fc711c78e06f0e474e2bf0feb0..HEAD
+
+## Commits
+3758dff fix: preserve date-shaped profile names on reload
+b1aeda4 feat: add local profiles and app session
+
+## Files changed
+ Assets/CPS/Profiles.meta                           |   8 +
+ Assets/CPS/Profiles/AppSession.cs                  |  51 +++++
+ Assets/CPS/Profiles/AppSession.cs.meta             |   2 +
+ Assets/CPS/Profiles/PlayerProfile.cs               |  12 +
+ Assets/CPS/Profiles/PlayerProfile.cs.meta          |   2 +
+ Assets/CPS/Profiles/ProfileStore.cs                | 180 +++++++++++++++
+ Assets/CPS/Profiles/ProfileStore.cs.meta           |   2 +
+ Assets/CPS/Tests/EditMode/ProfileStoreTests.cs     | 242 +++++++++++++++++++++
+ .../CPS/Tests/EditMode/ProfileStoreTests.cs.meta   |   2 +
+ Assets/CPS/Tests/PlayMode/AppSessionTests.cs       | 119 ++++++++++
+ Assets/CPS/Tests/PlayMode/AppSessionTests.cs.meta  |   2 +
+ 11 files changed, 622 insertions(+)
+
+## Diff
+diff --git a/Assets/CPS/Profiles.meta b/Assets/CPS/Profiles.meta
+new file mode 100644
+index 0000000..242cea2
+--- /dev/null
++++ b/Assets/CPS/Profiles.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: e6bfb4eb8e4876c4685359a524d3a8cf
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/Assets/CPS/Profiles/AppSession.cs b/Assets/CPS/Profiles/AppSession.cs
+new file mode 100644
+index 0000000..a50dff1
+--- /dev/null
++++ b/Assets/CPS/Profiles/AppSession.cs
+@@ -0,0 +1,51 @@
++using System;
++using UnityEngine;
++
++namespace CPS.KitchenCatch
++{
++    public sealed class AppSession : MonoBehaviour
++    {
++        public static AppSession Instance { get; private set; }
++        public ProfileStore Store { get; private set; }
++        public PlayerProfile SelectedProfile { get; private set; }
++        public DifficultyId SelectedDifficulty { get; private set; } = DifficultyId.Easy;
++
++        public void Initialize(ProfileStore store)
++        {
++            if (store == null) throw new ArgumentNullException(nameof(store));
++            if (Store != null) throw new InvalidOperationException("AppSession is already initialized.");
++            Store = store;
++            Store.Load();
++        }
++
++        public void Select(string playerId, DifficultyId difficulty)
++        {
++            if (!Enum.IsDefined(typeof(DifficultyId), difficulty))
++                throw new ArgumentException("Unknown difficulty.", nameof(difficulty));
++            if (Store == null) throw new InvalidOperationException("AppSession is not initialized.");
++            PlayerProfile selected = null;
++            foreach (var profile in Store.Profiles)
++                if (profile.PlayerId == playerId) { selected = profile; break; }
++            if (selected == null) throw new ArgumentException("Unknown player ID.", nameof(playerId));
++            SelectedProfile = selected;
++            SelectedDifficulty = difficulty;
++        }
++
++        private void Awake()
++        {
++            if (Instance != null && Instance != this)
++            {
++                Destroy(gameObject);
++                return;
++            }
++            Instance = this;
++            DontDestroyOnLoad(gameObject);
++            if (Store == null) Initialize(new ProfileStore());
++        }
++
++        private void OnDestroy()
++        {
++            if (Instance == this) Instance = null;
++        }
++    }
++}
+diff --git a/Assets/CPS/Profiles/AppSession.cs.meta b/Assets/CPS/Profiles/AppSession.cs.meta
+new file mode 100644
+index 0000000..735053f
+--- /dev/null
++++ b/Assets/CPS/Profiles/AppSession.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 7ee095c1263a81048bf370280858284a
+\ No newline at end of file
+diff --git a/Assets/CPS/Profiles/PlayerProfile.cs b/Assets/CPS/Profiles/PlayerProfile.cs
+new file mode 100644
+index 0000000..a8ff1aa
+--- /dev/null
++++ b/Assets/CPS/Profiles/PlayerProfile.cs
+@@ -0,0 +1,12 @@
++using System;
++
++namespace CPS.KitchenCatch
++{
++    [Serializable]
++    public sealed class PlayerProfile
++    {
++        public string PlayerId;
++        public string DisplayName;
++        public int PlayCount;
++    }
++}
+diff --git a/Assets/CPS/Profiles/PlayerProfile.cs.meta b/Assets/CPS/Profiles/PlayerProfile.cs.meta
+new file mode 100644
+index 0000000..6caffa4
+--- /dev/null
++++ b/Assets/CPS/Profiles/PlayerProfile.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 5d130b9f324af2e4fa8cdc12a01ba93c
+\ No newline at end of file
+diff --git a/Assets/CPS/Profiles/ProfileStore.cs b/Assets/CPS/Profiles/ProfileStore.cs
+new file mode 100644
+index 0000000..951a5e3
+--- /dev/null
++++ b/Assets/CPS/Profiles/ProfileStore.cs
+@@ -0,0 +1,180 @@
++using System;
++using System.Collections.Generic;
++using System.Globalization;
++using System.IO;
++using Newtonsoft.Json;
++using Newtonsoft.Json.Linq;
++using UnityEngine;
++
++namespace CPS.KitchenCatch
++{
++    public sealed class ProfileStore
++    {
++        public const string StorageKey = "CPS.KitchenCatch.Profiles";
++        public const string BackupKey = "CPS.KitchenCatch.Profiles.Backup";
++        private readonly Func<string, string> read;
++        private readonly Action<string, string> write;
++        private readonly Action flush;
++        private readonly List<PlayerProfile> profiles = new List<PlayerProfile>();
++        private readonly HashSet<string> completedSessions = new HashSet<string>(StringComparer.Ordinal);
++        private bool readSucceeded;
++        private string rawAwaitingBackup;
++        public IReadOnlyList<PlayerProfile> Profiles { get; }
++        public string Warning { get; private set; } = "";
++
++        public ProfileStore(Func<string, string> read = null, Action<string, string> write = null, Action flush = null)
++        {
++            this.read = read ?? (key => PlayerPrefs.HasKey(key) ? PlayerPrefs.GetString(key) : null);
++            this.write = write ?? PlayerPrefs.SetString;
++            this.flush = flush ?? PlayerPrefs.Save;
++            Profiles = profiles.AsReadOnly();
++        }
++
++        public void Load()
++        {
++            profiles.Clear();
++            rawAwaitingBackup = null;
++            readSucceeded = false;
++            Warning = "";
++            string raw;
++            try
++            {
++                raw = read(StorageKey);
++                readSucceeded = true;
++            }
++            catch (Exception exception)
++            {
++                Warning = "Profiles could not be read; saving is blocked. " + exception.Message;
++                return;
++            }
++
++            if (raw == null) return;
++            try
++            {
++                ValidateJson(raw);
++                var payload = JsonUtility.FromJson<Payload>(raw);
++                if (payload == null || payload.schemaVersion != 1 || payload.profiles == null)
++                    throw new ArgumentException("Unsupported or missing profile schema.");
++                ValidateProfiles(payload.profiles);
++                profiles.AddRange(payload.profiles);
++            }
++            catch (Exception exception)
++            {
++                Warning = "Profiles could not be loaded; using an empty list. " + exception.Message;
++                rawAwaitingBackup = raw;
++                BackupRaw();
++            }
++        }
++
++        public PlayerProfile Create(string displayName)
++        {
++            string name = displayName?.Trim();
++            if (!ValidName(name))
++                throw new ArgumentException("Nickname must contain 1–24 text elements.", nameof(displayName));
++            var profile = new PlayerProfile { PlayerId = Guid.NewGuid().ToString("N"), DisplayName = name };
++            profiles.Add(profile);
++            Save();
++            return profile;
++        }
++
++        public bool RecordResult(string playerId, string sessionId)
++        {
++            if (string.IsNullOrWhiteSpace(sessionId))
++                throw new ArgumentException("A session ID is required.", nameof(sessionId));
++            var profile = profiles.Find(item => item.PlayerId == playerId);
++            if (profile == null)
++                throw new ArgumentException("Unknown player ID.", nameof(playerId));
++            if (completedSessions.Contains(sessionId)) return false;
++            if (profile.PlayCount == int.MaxValue)
++                throw new InvalidOperationException("Play count has reached its limit.");
++            completedSessions.Add(sessionId);
++            profile.PlayCount++;
++            Save();
++            return true;
++        }
++
++        public bool Save()
++        {
++            if (!readSucceeded)
++            {
++                Warning = "Profiles have not been read successfully; saving is blocked.";
++                return false;
++            }
++            if (!BackupRaw()) return false;
++            try
++            {
++                ValidateProfiles(profiles);
++                write(StorageKey, JsonUtility.ToJson(new Payload { schemaVersion = 1, profiles = profiles }));
++                flush();
++                Warning = "";
++                return true;
++            }
++            catch (Exception exception)
++            {
++                Warning = "Profiles are available in memory but could not be saved. " + exception.Message;
++                return false;
++            }
++        }
++
++        private bool BackupRaw()
++        {
++            if (rawAwaitingBackup == null) return true;
++            try
++            {
++                write(BackupKey, rawAwaitingBackup);
++                flush();
++                rawAwaitingBackup = null;
++                return true;
++            }
++            catch (Exception exception)
++            {
++                Warning = "Raw profile backup failed; original storage is protected. " + exception.Message;
++                return false;
++            }
++        }
++
++        private static bool ValidName(string name)
++        {
++            if (string.IsNullOrEmpty(name) || name != name.Trim()) return false;
++            int length = new StringInfo(name).LengthInTextElements;
++            return length >= 1 && length <= 24;
++        }
++
++        private static void ValidateJson(string raw)
++        {
++            JObject json;
++            using (var input = new StringReader(raw))
++            using (var reader = new JsonTextReader(input) { DateParseHandling = DateParseHandling.None })
++            {
++                json = JObject.Load(reader);
++                if (reader.Read()) throw new ArgumentException("Unexpected content after profile JSON.");
++            }
++            if (json["schemaVersion"]?.Type != JTokenType.Integer ||
++                json["schemaVersion"].Value<int>() != 1 || !(json["profiles"] is JArray entries))
++                throw new ArgumentException("Unsupported or missing profile schema.");
++            foreach (var entry in entries)
++                if (!(entry is JObject profile) || profile["PlayerId"]?.Type != JTokenType.String ||
++                    profile["DisplayName"]?.Type != JTokenType.String ||
++                    profile["PlayCount"]?.Type != JTokenType.Integer ||
++                    profile["PlayCount"].Value<long>() < 0 || profile["PlayCount"].Value<long>() > int.MaxValue)
++                    throw new ArgumentException("Invalid profile field types or play count.");
++        }
++
++        private static void ValidateProfiles(List<PlayerProfile> values)
++        {
++            var ids = new HashSet<string>(StringComparer.Ordinal);
++            foreach (var profile in values)
++                if (profile == null || string.IsNullOrWhiteSpace(profile.PlayerId) ||
++                    profile.PlayerId != profile.PlayerId.Trim() || !ids.Add(profile.PlayerId) ||
++                    !ValidName(profile.DisplayName) || profile.PlayCount < 0)
++                    throw new ArgumentException("Invalid profile data or duplicate player ID.");
++        }
++
++        [Serializable]
++        private sealed class Payload
++        {
++            public int schemaVersion;
++            public List<PlayerProfile> profiles;
++        }
++    }
++}
+diff --git a/Assets/CPS/Profiles/ProfileStore.cs.meta b/Assets/CPS/Profiles/ProfileStore.cs.meta
+new file mode 100644
+index 0000000..ddb3b27
+--- /dev/null
++++ b/Assets/CPS/Profiles/ProfileStore.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 4772381bc594837488af229fcb411273
+\ No newline at end of file
+diff --git a/Assets/CPS/Tests/EditMode/ProfileStoreTests.cs b/Assets/CPS/Tests/EditMode/ProfileStoreTests.cs
+new file mode 100644
+index 0000000..acaab54
+--- /dev/null
++++ b/Assets/CPS/Tests/EditMode/ProfileStoreTests.cs
+@@ -0,0 +1,242 @@
++using System;
++using System.Collections.Generic;
++using NUnit.Framework;
++
++namespace CPS.KitchenCatch.Tests
++{
++    public sealed class ProfileStoreTests
++    {
++        private Storage storage;
++        private ProfileStore store;
++
++        [SetUp]
++        public void SetUp()
++        {
++            storage = new Storage();
++            store = NewStore();
++            store.Load();
++        }
++
++        [Test]
++        public void MissingStorageStartsEmptyWithoutWarning()
++        {
++            Assert.That(store.Profiles, Is.Empty);
++            Assert.That(store.Warning, Is.Empty);
++        }
++
++        [TestCase("  อาร์ค  ", "อาร์ค")]
++        [TestCase("<b>Arc</b>", "<b>Arc</b>")]
++        [TestCase("a\u0301", "a\u0301")]
++        [TestCase("2026-10-08T00:00:00Z", "2026-10-08T00:00:00Z")]
++        public void NamesAreTrimmedAndLiteral(string supplied, string expected)
++        {
++            Assert.That(store.Create(supplied).DisplayName, Is.EqualTo(expected));
++            var reloaded = NewStore();
++            reloaded.Load();
++            Assert.That(reloaded.Warning, Is.Empty);
++            Assert.That(reloaded.Profiles, Has.Count.EqualTo(1));
++            Assert.That(reloaded.Profiles[0].DisplayName, Is.EqualTo(expected));
++        }
++
++        [TestCase(null)]
++        [TestCase("")]
++        [TestCase(" \t\n ")]
++        [TestCase("abcdefghijklmnopqrstuvwxy")]
++        public void InvalidNamesDoNotCreateProfiles(string supplied)
++        {
++            Assert.Throws<ArgumentException>(() => store.Create(supplied));
++            Assert.That(store.Profiles, Is.Empty);
++        }
++
++        [Test]
++        public void TwentyFourTextElementsMayHaveMoreThanTwentyFourCodeUnits()
++        {
++            var name = string.Concat(System.Linq.Enumerable.Repeat("a\u0301", 24));
++            Assert.That(store.Create(name).DisplayName, Is.EqualTo(name));
++            Assert.Throws<ArgumentException>(() => store.Create(name + "b"));
++        }
++
++        [Test]
++        public void DuplicateNamesHaveDistinctPersistentGuidIds()
++        {
++            var first = store.Create("Arc");
++            var second = store.Create("Arc");
++            Assert.That(Guid.TryParse(first.PlayerId, out _), Is.True);
++            Assert.That(Guid.TryParse(second.PlayerId, out _), Is.True);
++            Assert.That(second.PlayerId, Is.Not.EqualTo(first.PlayerId));
++            var reloaded = NewStore();
++            reloaded.Load();
++            Assert.That(reloaded.Profiles.Count, Is.EqualTo(2));
++            Assert.That(reloaded.Profiles[1].PlayerId, Is.EqualTo(second.PlayerId));
++        }
++
++        [Test]
++        public void ResultCountsOncePerSessionAcrossProfilesAndReloadInSameRuntime()
++        {
++            var first = store.Create("Arc");
++            var second = store.Create("Arc");
++            Assert.That(store.RecordResult(first.PlayerId, "session-1"), Is.True);
++            Assert.That(store.RecordResult(first.PlayerId, "session-1"), Is.False);
++            Assert.That(store.RecordResult(second.PlayerId, "session-1"), Is.False);
++            store.Load();
++            Assert.That(store.RecordResult(first.PlayerId, "session-1"), Is.False);
++            Assert.That(store.RecordResult(first.PlayerId, "session-2"), Is.True);
++            var reloaded = NewStore();
++            reloaded.Load();
++            Assert.That(reloaded.Profiles[0].PlayCount, Is.EqualTo(2));
++            Assert.That(reloaded.Profiles[1].PlayCount, Is.Zero);
++        }
++
++        [TestCase(null)]
++        [TestCase("")]
++        [TestCase(" ")]
++        public void InvalidSessionDoesNotConsumeCount(string sessionId)
++        {
++            var profile = store.Create("Arc");
++            Assert.Throws<ArgumentException>(() => store.RecordResult(profile.PlayerId, sessionId));
++            Assert.That(profile.PlayCount, Is.Zero);
++        }
++
++        [Test]
++        public void UnknownPlayerDoesNotConsumeSession()
++        {
++            Assert.Throws<ArgumentException>(() => store.RecordResult("missing", "session"));
++            var profile = store.Create("Arc");
++            Assert.That(store.RecordResult(profile.PlayerId, "session"), Is.True);
++        }
++
++        [TestCase("not json")]
++        [TestCase("")]
++        [TestCase("null")]
++        [TestCase("{}")]
++        [TestCase("{\"schemaVersion\":1,\"profiles\":null}")]
++        [TestCase("{\"schemaVersion\":1}")]
++        [TestCase("{\"schemaVersion\":\"1\",\"profiles\":[]}")]
++        [TestCase("{\"schemaVersion\":1,\"profiles\":[{\"PlayerId\":\"id\",\"DisplayName\":\"Arc\",\"PlayCount\":1.5}]}")]
++        [TestCase("{\"schemaVersion\":1,\"profiles\":[{\"PlayerId\":42,\"DisplayName\":\"Arc\",\"PlayCount\":0}]}")]
++        [TestCase("{\"schemaVersion\":1,\"profiles\":[{\"PlayerId\":\"id\",\"DisplayName\":\"Arc\"}]}")]
++        [TestCase("{\"schemaVersion\":2,\"profiles\":[]}")]
++        [TestCase("{\"schemaVersion\":1,\"profiles\":[null]}")]
++        [TestCase("{\"schemaVersion\":1,\"profiles\":[{\"PlayerId\":\"\",\"DisplayName\":\"Arc\",\"PlayCount\":0}]}")]
++        [TestCase("{\"schemaVersion\":1,\"profiles\":[{\"PlayerId\":\"id\",\"DisplayName\":\" \",\"PlayCount\":0}]}")]
++        [TestCase("{\"schemaVersion\":1,\"profiles\":[{\"PlayerId\":\"id\",\"DisplayName\":\"Arc\",\"PlayCount\":-1}]}")]
++        [TestCase("{\"schemaVersion\":1,\"profiles\":[{\"PlayerId\":\"id\",\"DisplayName\":\"Arc\",\"PlayCount\":0},{\"PlayerId\":\"id\",\"DisplayName\":\"B\",\"PlayCount\":0}]}")]
++        public void InvalidPayloadIsBackedUpBeforeItCanBeReplaced(string raw)
++        {
++            storage.Seed(raw);
++            store.Load();
++            Assert.That(store.Profiles, Is.Empty);
++            Assert.That(store.Warning, Is.Not.Empty);
++            Assert.That(storage.Persisted[ProfileStore.BackupKey], Is.EqualTo(raw));
++            store.Create("Recovered");
++            Assert.That(storage.Persisted[ProfileStore.BackupKey], Is.EqualTo(raw));
++            var reloaded = NewStore();
++            reloaded.Load();
++            Assert.That(reloaded.Profiles[0].DisplayName, Is.EqualTo("Recovered"));
++        }
++
++        [TestCase(true)]
++        [TestCase(false)]
++        public void FailedBackupNeverOverwritesPrimaryAndCanBeRetried(bool writeFailure)
++        {
++            const string raw = "recover me";
++            storage.Seed(raw);
++            storage.FailWriteKey = writeFailure ? ProfileStore.BackupKey : null;
++            storage.FailFlush = !writeFailure;
++            store.Load();
++            var profile = store.Create("Memory");
++            Assert.That(store.Save(), Is.False);
++            Assert.That(storage.Pending[ProfileStore.StorageKey], Is.EqualTo(raw));
++            Assert.That(storage.Persisted[ProfileStore.StorageKey], Is.EqualTo(raw));
++            Assert.That(store.Profiles[0], Is.SameAs(profile));
++            Assert.That(store.Warning, Is.Not.Empty);
++            storage.FailWriteKey = null;
++            storage.FailFlush = false;
++            Assert.That(store.Save(), Is.True);
++            Assert.That(storage.Persisted[ProfileStore.BackupKey], Is.EqualTo(raw));
++        }
++
++        [Test]
++        public void ReadFailureBlocksWritesUntilStorageCanBeRead()
++        {
++            const string raw = "unreadable raw";
++            storage.Seed(raw);
++            storage.FailRead = true;
++            Assert.DoesNotThrow(() => store.Load());
++            store.Create("Memory");
++            Assert.That(store.Save(), Is.False);
++            Assert.That(store.Warning, Is.Not.Empty);
++            Assert.That(storage.Pending[ProfileStore.StorageKey], Is.EqualTo(raw));
++            storage.FailRead = false;
++            store.Load();
++            Assert.That(storage.Persisted[ProfileStore.BackupKey], Is.EqualTo(raw));
++        }
++
++        [TestCase(true)]
++        [TestCase(false)]
++        public void SaveFailureKeepsProfilesAndSessionCountInMemory(bool writeFailure)
++        {
++            var profile = store.Create("Arc");
++            storage.FailWriteKey = writeFailure ? ProfileStore.StorageKey : null;
++            storage.FailFlush = !writeFailure;
++            var memoryProfile = store.Create("Memory");
++            Assert.That(store.RecordResult(profile.PlayerId, "session"), Is.True);
++            Assert.That(store.RecordResult(profile.PlayerId, "session"), Is.False);
++            Assert.That(profile.PlayCount, Is.EqualTo(1));
++            Assert.That(store.Profiles[1], Is.SameAs(memoryProfile));
++            Assert.That(store.Save(), Is.False);
++            Assert.That(store.Warning, Is.Not.Empty);
++            storage.FailWriteKey = null;
++            storage.FailFlush = false;
++            Assert.That(store.Save(), Is.True);
++            var reloaded = NewStore();
++            reloaded.Load();
++            Assert.That(reloaded.Profiles.Count, Is.EqualTo(2));
++            Assert.That(reloaded.Profiles[0].PlayCount, Is.EqualTo(1));
++        }
++
++        [Test]
++        public void ValidEmptyListLoadsWithoutWarning()
++        {
++            storage.Seed("{\"schemaVersion\":1,\"profiles\":[]}");
++            store.Load();
++            Assert.That(store.Profiles, Is.Empty);
++            Assert.That(store.Warning, Is.Empty);
++        }
++
++        private ProfileStore NewStore() => new ProfileStore(storage.Read, storage.Write, storage.Flush);
++
++        private sealed class Storage
++        {
++            public readonly Dictionary<string, string> Pending = new Dictionary<string, string>();
++            public readonly Dictionary<string, string> Persisted = new Dictionary<string, string>();
++            public bool FailRead;
++            public string FailWriteKey;
++            public bool FailFlush;
++
++            public void Seed(string raw)
++            {
++                Pending[ProfileStore.StorageKey] = raw;
++                Persisted[ProfileStore.StorageKey] = raw;
++            }
++
++            public string Read(string key)
++            {
++                if (FailRead) throw new InvalidOperationException("read failed");
++                return Pending.TryGetValue(key, out var value) ? value : null;
++            }
++
++            public void Write(string key, string value)
++            {
++                if (key == FailWriteKey) throw new InvalidOperationException("write failed");
++                Pending[key] = value;
++            }
++
++            public void Flush()
++            {
++                if (FailFlush) throw new InvalidOperationException("flush failed");
++                foreach (var entry in Pending) Persisted[entry.Key] = entry.Value;
++            }
++        }
++    }
++}
+diff --git a/Assets/CPS/Tests/EditMode/ProfileStoreTests.cs.meta b/Assets/CPS/Tests/EditMode/ProfileStoreTests.cs.meta
+new file mode 100644
+index 0000000..0584c50
+--- /dev/null
++++ b/Assets/CPS/Tests/EditMode/ProfileStoreTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 84e73deabce4fd54bbf3d4ca78319873
+\ No newline at end of file
+diff --git a/Assets/CPS/Tests/PlayMode/AppSessionTests.cs b/Assets/CPS/Tests/PlayMode/AppSessionTests.cs
+new file mode 100644
+index 0000000..89381b7
+--- /dev/null
++++ b/Assets/CPS/Tests/PlayMode/AppSessionTests.cs
+@@ -0,0 +1,119 @@
++using System;
++using System.Collections;
++using System.Collections.Generic;
++using NUnit.Framework;
++using UnityEngine;
++using UnityEngine.SceneManagement;
++using UnityEngine.TestTools;
++using Object = UnityEngine.Object;
++
++namespace CPS.KitchenCatch.Tests
++{
++    public sealed class AppSessionTests
++    {
++        private readonly List<GameObject> created = new List<GameObject>();
++
++        [TearDown]
++        public void TearDown()
++        {
++            foreach (var go in created)
++                if (go != null) Object.DestroyImmediate(go);
++            created.Clear();
++        }
++
++        [UnityTest]
++        public IEnumerator ActivatedSessionBecomesPersistentSingleton()
++        {
++            var session = CreateSession(out _);
++            yield return null;
++            Assert.That(AppSession.Instance, Is.SameAs(session));
++            Assert.That(session.gameObject.scene.name, Is.EqualTo("DontDestroyOnLoad"));
++        }
++
++        [UnityTest]
++        public IEnumerator DuplicateCannotReplaceOriginalSelectionOrStore()
++        {
++            var first = CreateSession(out var store);
++            var profile = store.Create("Arc");
++            first.Select(profile.PlayerId, DifficultyId.Hard);
++            var duplicate = CreateSession(out _);
++            yield return null;
++            Assert.That(duplicate == null, Is.True);
++            Assert.That(AppSession.Instance, Is.SameAs(first));
++            Assert.That(first.Store, Is.SameAs(store));
++            Assert.That(first.SelectedProfile, Is.SameAs(profile));
++            Assert.That(first.SelectedDifficulty, Is.EqualTo(DifficultyId.Hard));
++        }
++
++        [UnityTest]
++        public IEnumerator SceneChangesKeepSelectionAndCompletedSessionIds()
++        {
++            var originalScene = SceneManager.GetActiveScene();
++            var session = CreateSession(out var store);
++            var profile = store.Create("Arc");
++            session.Select(profile.PlayerId, DifficultyId.Normal);
++            store.RecordResult(profile.PlayerId, "same-session");
++            var temporary = SceneManager.CreateScene("Task3_ProfilePersistence");
++            SceneManager.SetActiveScene(temporary);
++            yield return SceneManager.UnloadSceneAsync(temporary);
++            SceneManager.SetActiveScene(originalScene);
++            Assert.That(AppSession.Instance, Is.SameAs(session));
++            Assert.That(session.gameObject.scene.name, Is.EqualTo("DontDestroyOnLoad"));
++            Assert.That(session.SelectedProfile, Is.SameAs(profile));
++            Assert.That(session.SelectedDifficulty, Is.EqualTo(DifficultyId.Normal));
++            Assert.That(store.RecordResult(profile.PlayerId, "same-session"), Is.False);
++            Assert.That(profile.PlayCount, Is.EqualTo(1));
++        }
++
++        [Test]
++        public void InvalidSelectionDoesNotReplaceCurrentChoice()
++        {
++            var session = CreateSession(out var store);
++            var profile = store.Create("Arc");
++            session.Select(profile.PlayerId, DifficultyId.Easy);
++            Assert.Throws<ArgumentException>(() => session.Select("missing", DifficultyId.Hard));
++            Assert.Throws<ArgumentException>(() => session.Select(profile.PlayerId, (DifficultyId)999));
++            Assert.That(session.SelectedProfile, Is.SameAs(profile));
++            Assert.That(session.SelectedDifficulty, Is.EqualTo(DifficultyId.Easy));
++        }
++
++        [Test]
++        public void InitializeLoadsProfilesWithoutNavigatingAndCannotReplaceStore()
++        {
++            string sceneBefore = SceneManager.GetActiveScene().name;
++            var values = new Dictionary<string, string>();
++            var initial = new ProfileStore(key => values.TryGetValue(key, out var raw) ? raw : null,
++                (key, raw) => values[key] = raw, () => { });
++            initial.Load();
++            var profile = initial.Create("Arc");
++            var store = new ProfileStore(key => values.TryGetValue(key, out var raw) ? raw : null,
++                (key, raw) => values[key] = raw, () => { });
++            var go = new GameObject("AppSession");
++            created.Add(go);
++            go.SetActive(false);
++            var session = go.AddComponent<AppSession>();
++            session.Initialize(store);
++            go.SetActive(true);
++            Assert.That(session.Store.Profiles[0].PlayerId, Is.EqualTo(profile.PlayerId));
++            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(sceneBefore));
++            Assert.Throws<InvalidOperationException>(() => session.Initialize(initial));
++            Assert.That(session.Store, Is.SameAs(store));
++            Object.DestroyImmediate(go);
++            Assert.That(AppSession.Instance == null, Is.True);
++        }
++
++        private AppSession CreateSession(out ProfileStore store)
++        {
++            var values = new Dictionary<string, string>();
++            store = new ProfileStore(key => values.TryGetValue(key, out var raw) ? raw : null,
++                (key, raw) => values[key] = raw, () => { });
++            var go = new GameObject("AppSession");
++            created.Add(go);
++            go.SetActive(false);
++            var session = go.AddComponent<AppSession>();
++            session.Initialize(store);
++            go.SetActive(true);
++            return session;
++        }
++    }
++}
+diff --git a/Assets/CPS/Tests/PlayMode/AppSessionTests.cs.meta b/Assets/CPS/Tests/PlayMode/AppSessionTests.cs.meta
+new file mode 100644
+index 0000000..756ae3e
+--- /dev/null
++++ b/Assets/CPS/Tests/PlayMode/AppSessionTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 12de7a71e12c48e40bb99c6d986aabb1
+\ No newline at end of file

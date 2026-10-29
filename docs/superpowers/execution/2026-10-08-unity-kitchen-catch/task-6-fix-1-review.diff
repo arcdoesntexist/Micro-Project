@@ -1,0 +1,163 @@
+# Review package: af2fa7c41add0271e14e2fa33121f5fae7ec4894..eab1e00
+
+## Commits
+eab1e00 test: cover zero-input results and clear stale menu warning
+
+## Files changed
+ Assets/CPS/Tests/PlayMode/GameUITests.cs | 58 ++++++++++++++++++++++++++++++++
+ Assets/CPS/UI/MainMenuUI.cs              |  2 ++
+ 2 files changed, 60 insertions(+)
+
+## Diff
+diff --git a/Assets/CPS/Tests/PlayMode/GameUITests.cs b/Assets/CPS/Tests/PlayMode/GameUITests.cs
+index 925ae0b..47ed100 100644
+--- a/Assets/CPS/Tests/PlayMode/GameUITests.cs
++++ b/Assets/CPS/Tests/PlayMode/GameUITests.cs
+@@ -59,20 +59,47 @@ public void DuplicateProfileNamesRemainSeparateDropdownChoicesById()
+             var menu = New<MainMenuUI>("Menu");
+             var dropdown = New<Dropdown>("Profiles");
+             Set(menu, "profileDropdown", dropdown);
+             menu.RefreshProfiles();
+             Assert.That(dropdown.options.Count, Is.EqualTo(2));
+             Assert.That(dropdown.options[0].text, Does.Contain(first.PlayerId.Substring(0, 6)));
+             Assert.That(dropdown.options[1].text, Does.Contain(second.PlayerId.Substring(0, 6)));
+             Assert.That(dropdown.options[0].text, Is.Not.EqualTo(dropdown.options[1].text));
+         }
+ 
++        [Test]
++        public void SelectingExistingProfileOrDifficultyClearsRejectedNicknameWarning()
++        {
++            var first = app.Store.Create("Mint");
++            var second = app.Store.Create("Arc");
++            app.Select(first.PlayerId, DifficultyId.Easy);
++            var menu = New<MainMenuUI>("Menu");
++            menu.enabled = false;
++            var field = New<InputField>("Name input");
++            var dropdown = New<Dropdown>("Profiles");
++            var status = New<Text>("Status");
++            Set(menu, "nicknameField", field);
++            Set(menu, "profileDropdown", dropdown);
++            Set(menu, "status", status);
++            menu.enabled = true;
++
++            Assert.That(menu.CreateProfile(), Is.False);
++            Assert.That(status.text, Does.Contain("Nickname must contain"));
++            menu.SelectDifficulty(DifficultyId.Normal);
++            Assert.That(status.text, Does.Not.Contain("Nickname must contain"));
++
++            Assert.That(menu.CreateProfile(), Is.False);
++            dropdown.value = 1;
++            Assert.That(app.SelectedProfile.PlayerId, Is.EqualTo(second.PlayerId));
++            Assert.That(status.text, Does.Not.Contain("Nickname must contain"));
++        }
++
+         [Test]
+         public void ChosenDifficultyRemainsVisibleWhenAnotherControlHasFocus()
+         {
+             var menu = New<MainMenuUI>("Menu");
+             var easy = New<Button>("Easy");
+             var normal = New<Button>("Normal");
+             var hard = New<Button>("Hard");
+             Set(menu, "easyButton", easy);
+             Set(menu, "normalButton", normal);
+             Set(menu, "hardButton", hard);
+@@ -114,20 +141,51 @@ public void ResultsShowCompleteRoundAndUnavailableKeyboardForce()
+             Assert.That(Get<Text>(panel, "identity").supportRichText, Is.False);
+             Assert.That(Get<Text>(panel, "outcome").text, Does.Contain("HP depleted"));
+             Assert.That(Get<Text>(panel, "score").text, Does.Contain("145"));
+             Assert.That(Get<Text>(panel, "roundStats").text, Does.Contain("Hard").And.Contain("27.5").And.Contain("Food Caught 9").And.Contain("Food Missed 2").And.Contain("Trash Eaten 1").And.Contain("Max Combo 6").And.Contain("Highest Rank S"));
+             Assert.That(Get<Text>(panel, "leftStats").text, Does.Contain("25%").And.Contain("100%").And.Contain("7.0"));
+             Assert.That(Get<Text>(panel, "rightStats").text, Does.Contain("50%").And.Contain("100%").And.Contain("12.0"));
+             Assert.That(Get<Text>(panel, "balance").text, Does.Contain("Both 3.0").And.Contain("37%"));
+             Assert.That(Get<Text>(panel, "forceStatus").text, Does.Contain("Sensor not connected"));
+         }
+ 
++        [Test]
++        public void ResultsDistinguishMissingSamplesFromValidZeroStrength()
++        {
++            var panel = New<ResultPanel>("Results");
++            foreach (var label in new[] { "leftStats", "rightStats", "balance", "forceStatus" })
++                Set(panel, label, New<Text>(label));
++            var collector = new ForceStatsCollector();
++            collector.Accumulate(new InputSnapshot(default, default, "Keyboard"), 1);
++            var result = new SessionResult { InputSource = "Keyboard", InputStatistics = collector.Snapshot() };
++            Assert.That(result.InputStatistics.Left.ValidDurationSeconds, Is.Zero);
++            Assert.That(result.InputStatistics.Right.ValidDurationSeconds, Is.Zero);
++
++            panel.Show(result);
++            Assert.That(Get<Text>(panel, "leftStats").text, Is.EqualTo("LEFT\nMean — · Max —\nPressed 0.0 s"));
++            Assert.That(Get<Text>(panel, "rightStats").text, Is.EqualTo("RIGHT\nMean — · Max —\nPressed 0.0 s"));
++            Assert.That(Get<Text>(panel, "balance").text, Is.EqualTo("Both 0.0 s · Left–Right Balance —"));
++            Assert.That(Get<Text>(panel, "forceStatus").text, Does.Contain("Force (N): — / Sensor not connected"));
++
++            var released = new HandInput(false, 0, true, null);
++            collector.Accumulate(new InputSnapshot(released, released, "Keyboard"), 1);
++            result.InputStatistics = collector.Snapshot();
++            Assert.That(result.InputStatistics.Left.ValidDurationSeconds, Is.EqualTo(1));
++            Assert.That(result.InputStatistics.Right.ValidDurationSeconds, Is.EqualTo(1));
++
++            panel.Show(result);
++            Assert.That(Get<Text>(panel, "leftStats").text, Is.EqualTo("LEFT\nMean 0% · Max 0%\nPressed 0.0 s"));
++            Assert.That(Get<Text>(panel, "rightStats").text, Is.EqualTo("RIGHT\nMean 0% · Max 0%\nPressed 0.0 s"));
++            Assert.That(Get<Text>(panel, "balance").text, Is.EqualTo("Both 0.0 s · Left–Right Balance —"));
++            Assert.That(Get<Text>(panel, "forceStatus").text, Does.Contain("Force (N): — / Sensor not connected"));
++        }
++
+         [Test]
+         public void BoundHudShowsRoundValuesAndSimulatedHandInputsWithoutNewtons()
+         {
+             var controller = New<GameSessionController>("Round");
+             controller.Model.Start();
+             controller.Model.Resolve(1, ObjectKind.Food, ObjectOutcome.Caught, 10);
+             controller.Model.Resolve(2, ObjectKind.Food, ObjectOutcome.Caught, 15);
+             var ui = New<GameplayUI>("HUD");
+             foreach (var field in new[] { "profile", "hp", "time", "score", "difficulty", "rank", "leftHand", "rightHand", "inputSource", "status", "rankCallout" })
+             {
+diff --git a/Assets/CPS/UI/MainMenuUI.cs b/Assets/CPS/UI/MainMenuUI.cs
+index 0a913c8..5cc2e39 100644
+--- a/Assets/CPS/UI/MainMenuUI.cs
++++ b/Assets/CPS/UI/MainMenuUI.cs
+@@ -109,20 +109,21 @@ public bool CreateProfile()
+             {
+                 localWarning = exception.Message;
+                 RefreshStatus();
+                 return false;
+             }
+         }
+ 
+         public void SelectDifficulty(DifficultyId selected)
+         {
+             difficulty = selected;
++            localWarning = null;
+             var app = AppSession.Instance;
+             if (app?.SelectedProfile != null) app.Select(app.SelectedProfile.PlayerId, selected);
+             UpdateDifficultyButtons();
+             RefreshStatus();
+         }
+ 
+         private void UpdateDifficultyButtons()
+         {
+             SetDifficultyTint(easyButton, difficulty == DifficultyId.Easy);
+             SetDifficultyTint(normalButton, difficulty == DifficultyId.Normal);
+@@ -143,20 +144,21 @@ public bool StartSelectedGame()
+         {
+             RefreshStatus();
+             return ValidationError == null && navigator != null && navigator.GoTo("Gameplay");
+         }
+ 
+         private void SelectProfile(int index)
+         {
+             var app = AppSession.Instance;
+             if (app?.Store == null || index < 0 || index >= profileIds.Count) return;
+             app.Select(profileIds[index], difficulty);
++            localWarning = null;
+             RefreshStatus();
+         }
+ 
+         private void RefreshStatus()
+         {
+             var app = AppSession.Instance;
+             string error = ValidationError;
+             if (startButton != null) startButton.interactable = error == null && navigator != null && !navigator.IsTransitioning;
+             if (status != null)
+             {
