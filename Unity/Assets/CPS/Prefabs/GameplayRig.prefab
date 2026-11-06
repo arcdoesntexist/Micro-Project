@@ -117,7 +117,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.GoogleSheetsResultUploader
   controller: {fileID: 6283670270326058778}
-  endpoint: https://script.google.com/macros/s/AKfycbzBmXK-7_5x4EEBYNKbSOan61djhXDhBI_CD7mElk2EdohlfHCJwU34wO4pV1ckKdUXsQ/exec
+  endpoint: https://script.google.com/macros/s/AKfycbxmUwlzaqkbO04UAfhy2CxkpmMR5fEXioOeCoTGxHrwuX4V6VCA9zC3RJ_YQlq-gq8h/exec
 --- !u!1 &8982709089889783802
 GameObject:
   m_ObjectHideFlags: 0

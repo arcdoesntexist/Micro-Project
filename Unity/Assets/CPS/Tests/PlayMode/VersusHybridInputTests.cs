@@ -16,12 +16,15 @@ namespace CPS.KitchenCatch.Tests
         private VersusControllerHub hub;
         private VersusKeyboardInput p1;
         private VersusKeyboardInput p2;
+        private bool originalLeftEnabled;
         [SetUp] public override void Setup()
         {
             base.Setup();
             if (VersusControllerHub.Instance != null) Object.DestroyImmediate(VersusControllerHub.Instance.gameObject);
             keyboard = InputSystem.AddDevice<Keyboard>();
             hub = VersusControllerHub.EnsureExists();
+            originalLeftEnabled = hub.Settings.stm32LeftEnabled;
+            hub.Settings.stm32LeftEnabled = false;
             root = new GameObject("Hybrid inputs");
             p1 = root.AddComponent<VersusKeyboardInput>(); p1.Configure(Key.A, Key.D, "Keyboard P1");
             p2 = root.AddComponent<VersusKeyboardInput>(); p2.Configure(Key.LeftArrow, Key.RightArrow, "Keyboard P2");
@@ -29,7 +32,11 @@ namespace CPS.KitchenCatch.Tests
         [TearDown] public override void TearDown()
         {
             Object.DestroyImmediate(root);
-            if (hub != null) Object.DestroyImmediate(hub.gameObject);
+            if (hub != null)
+            {
+                hub.Settings.stm32LeftEnabled = originalLeftEnabled;
+                Object.DestroyImmediate(hub.gameObject);
+            }
             base.TearDown();
         }
         private void Feed(string line = "FSR raw L=0 R=100\n")
@@ -53,6 +60,29 @@ namespace CPS.KitchenCatch.Tests
             Assert.That(state.Right.ForceN, Is.Null);
             Assert.That(state.Source, Is.EqualTo("Keyboard + FSR P2"));
         }
+        [Test] public void RestoredSensorAndKeyboardCanDriveEachDirectionAndReady()
+        {
+            hub.Settings.stm32LeftEnabled = true;
+            Feed("FSR raw L=50 R=4095\n"); Keys();
+            Assert.That(p2.Read().Left.Pressed, Is.True);
+            Assert.That(p2.Read().Right.Pressed, Is.False);
+            Feed("FSR raw L=4095 R=100\n");
+            Assert.That(p2.Read().Left.Pressed, Is.False);
+            Assert.That(p2.Read().Right.Pressed, Is.True);
+            Keys(Key.LeftArrow);
+            Assert.That(p2.Read().Left.Pressed && p2.Read().Right.Pressed, Is.True);
+            Feed("FSR raw L=50 R=100\n"); Keys();
+            var mascot = new GameObject("Restored practice", typeof(RectTransform));
+            try
+            {
+                var practice = mascot.AddComponent<VersusPracticePlayer>();
+                practice.Initialize(p2, mascot.GetComponent<RectTransform>(), null, -100, 100, 100);
+                practice.StepPractice(p2.Read(), .1f);
+                Assert.That(practice.IsReady, Is.True);
+            }
+            finally { Object.DestroyImmediate(mascot); }
+        }
+
         [Test] public void BrokenSensorCannotPressLeftAndKeyboardStillWorksWithoutBoards()
         {
             Feed("FSR raw L=0 R=4095\n"); Keys();

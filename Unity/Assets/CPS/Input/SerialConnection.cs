@@ -76,7 +76,15 @@ namespace CPS.KitchenCatch
             lines.Push(chunk, line =>
             {
                 var previous = Packets.Latest;
-                if (!Packets.TryAccept(line, receivedAtSeconds, out _)) return;
+                if (!Packets.TryAccept(line, receivedAtSeconds, out _))
+                {
+                    if (Packets.Latest == null && line.StartsWith("FSR raw L=", StringComparison.Ordinal))
+                    {
+                        LastError = "Raw FSR data received.\nChoose ESP32 with Sensor_Controller firmware.";
+                        Status = "USB connected; incompatible raw firmware";
+                    }
+                    return;
+                }
                 var packet = Packets.Latest;
                 if (previous == null || previous.BootId != packet.BootId)
                     authorized = awaitingTare = false;

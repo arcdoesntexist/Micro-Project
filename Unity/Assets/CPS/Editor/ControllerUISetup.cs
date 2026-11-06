@@ -92,6 +92,7 @@ namespace CPS.KitchenCatch.Editor
                     }
                     overlay.gameObject.SetActive(false);
                 }
+                ProfileDropdownSetup.Configure((Dropdown)data.FindProperty("ports").objectReferenceValue);
                 if (gameplay)
                 {
                     var ui = new SerializedObject(root.GetComponent<GameplayUI>());

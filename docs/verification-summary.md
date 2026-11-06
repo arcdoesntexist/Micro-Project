@@ -13,3 +13,17 @@ Snapshot date: 2026-10-29. This repository contains source and configuration; ma
 Physical ESP32 operation together with STM32, human press/release calibration, a new WebGL/standalone build, live Google Sheets submissions and measured frame-rate profiling were not performed in this verification run. FSR percentages remain provisional and are not newtons.
 
 To run automated Unity checks, use Test Runner with the EditMode and PlayMode tabs. The physical STM32 smoke case is optional and requires MICRO_STM32_TEST_PORT set to an available port; otherwise it is skipped. Close other serial terminals first. Test capture/output directories are ignored by Git.
+
+
+## 2026-11-06 follow-up
+
+The user reported the STM32 left FSR repaired. Both Unity copies now enable it; see [the dated evidence](evidence/2026-11-06-stm32-left-fsr/README.md) for the new checks and their limits. Earlier counts above remain historical results.
+
+
+## 2026-11-06 Single Player USB follow-up
+
+Port-dropdown repair and wrong-firmware feedback were checked separately from the earlier hybrid-controller work. See [the dated Single Player evidence](evidence/2026-11-06-singleplayer-usb/README.md) for results and limitations.
+
+## 2026-11-06 Single Player database follow-up
+
+Single Player now uses the Micro deployment in both maintained Unity copies. Configuration, uploader and local receiver checks are recorded in [dated evidence](evidence/2026-11-06-micro-db-cutover/README.md); a live valid-row write was not performed.

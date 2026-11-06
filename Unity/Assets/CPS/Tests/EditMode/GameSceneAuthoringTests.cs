@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -8,6 +9,25 @@ namespace CPS.KitchenCatch.Tests
 {
     public sealed class GameSceneAuthoringTests
     {
+        [Test]
+        public void SinglePlayerAndItsAuthoringUseTheMicroDeployment()
+        {
+            const string micro = "https://script.google.com/macros/s/AKfycbxmUwlzaqkbO04UAfhy2CxkpmMR5fEXioOeCoTGxHrwuX4V6VCA9zC3RJ_YQlq-gq8h/exec";
+            var rig = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CPS/Prefabs/GameplayRig.prefab");
+            var uploader = new SerializedObject(rig.GetComponent<GoogleSheetsResultUploader>());
+            Assert.That(uploader.FindProperty("endpoint").stringValue, Is.EqualTo(micro),
+                "Single Player must not submit Micro results to the inherited CPS deployment.");
+            var authoring = typeof(Editor.GameSceneSetup).GetField("ResultEndpoint", BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.That(authoring.GetRawConstantValue(), Is.EqualTo(micro), "Reauthoring must preserve the Micro destination.");
+            var scene = EditorSceneManager.OpenPreviewScene("Assets/CPS/Scenes/VersusGameplay.unity");
+            try
+            {
+                var versus = new SerializedObject(Find<VersusMatchController>(scene));
+                Assert.That(versus.FindProperty("resultEndpoint").stringValue, Is.EqualTo(micro));
+            }
+            finally { EditorSceneManager.ClosePreviewScene(scene); }
+        }
+
         [Test]
         public void MenuAndGameplayUseOneAuthoredRigWithoutConfigurationOverrides()
         {

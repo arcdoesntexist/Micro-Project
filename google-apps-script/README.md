@@ -21,7 +21,7 @@ The Multiplayer tab repeats `matchNumber` and `matchId` on both rows. Odd matche
 
 ## Request routing
 
-Legacy payloads with no `mode`, and payloads with `"mode":"singleplayer"`, write to `Singleplayer`. This allows the current Single Player Unity payload to continue working after a later endpoint cutover.
+Legacy payloads with no `mode`, and payloads with `"mode":"singleplayer"`, write to `Singleplayer`. This allows the current Single Player Unity payload to continue working with the Micro deployment.
 
 Multiplayer payloads use `"mode":"multiplayer"` and contain exactly two distinct profiles. The complete example is in the approved design document. The script normalizes incoming player order and always writes P1 before P2. A named winner must have positive HP while the loser has zero HP. A draw requires both players to have zero HP.
 
@@ -49,8 +49,8 @@ Contract errors return an `Invalid payload: ...` message without adding rows. Ot
 
 Create a Web app deployment that executes as the spreadsheet owner. For the classroom demo, allowing access to `Anyone` makes the endpoint public and unauthenticated; anyone who knows the URL can submit junk data.
 
-After changing `Code.gs`, create a new deployment version or update the existing deployment to use the new version. Test this deployment before changing Unity. The current Unity build continues using its previous endpoint until a separate integration task replaces and verifies the URL.
+After changing `Code.gs`, create a new deployment version or update the existing deployment to use the new version. Test the deployment after changing the script. Single Player and Versus Unity configuration now use the Micro deployment below; Single Player cutover checks are recorded in [dated evidence](../docs/evidence/2026-11-06-micro-db-cutover/README.md).
 
 Deployment URL: `https://script.google.com/macros/s/AKfycbxmUwlzaqkbO04UAfhy2CxkpmMR5fEXioOeCoTGxHrwuX4V6VCA9zC3RJ_YQlq-gq8h/exec`
 
-Deployment version 1 was created on 2026-10-28 with **Execute as: Me** and **Who has access: Anyone**. Unity has not been repointed to this URL yet.
+Deployment version 1 was created on 2026-10-28 with **Execute as: Me** and **Who has access: Anyone**. Both maintained Unity copies were configured to use this deployment for Single Player on 2026-11-06. This configuration check does not establish a fresh live spreadsheet write.

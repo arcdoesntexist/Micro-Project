@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-11-06 — Single Player Micro-DB destination
+
+- Replaced the inherited CPS endpoint in the Single Player gameplay prefab and scene authoring constant with the existing Micro deployment.
+- Added a destination regression check. No historical rows were migrated; live persistence remains a user-round check. See [dated evidence](docs/evidence/2026-11-06-micro-db-cutover/README.md).
+
+## 2026-11-06 — Single Player USB selector and protocol feedback
+
+- Repaired the serial-port dropdown in Home and Pause using the existing themed, scrollable profile-list template.
+- Added actionable feedback when a connected port supplies raw FSR bench data instead of the ESP32 JSON protocol required by Single Player.
+- Added regression coverage for both dropdown prefabs, option selection and firmware-mismatch recovery, plus an optional physical ESP32 panel/Tare test.
+- Firmware and gameplay calibration are unchanged. Verification and physical-check limits: [dated evidence](docs/evidence/2026-11-06-singleplayer-usb/README.md).
+
+## 2026-11-06 — STM32 left FSR restored
+
+- Enabled the repaired STM32 left FSR in the shipped Versus settings asset, retaining keyboard + FSR controls.
+- Made the P2 Controllers hint follow the left-channel setting instead of always claiming that it is disabled.
+- Retained provisional raw endpoints and percentage thresholds; this change does not establish new force calibration.
+- Verification scope and results: [dated evidence](docs/evidence/2026-11-06-stm32-left-fsr/README.md).
+
 This file records the project changes between committed versions. Project purpose, gameplay and setup information belong in [README.md](README.md).
 
 
@@ -157,5 +176,3 @@ The playable Unity checkout was maintained outside this repository at this versi
 - Added separate local multiplayer records and the dual-player Sheets payload, with one retry using the same match ID. Single Player storage/upload is unchanged.
 - Included VersusGameplay in the WebGL scene list. No WebGL build was produced.
 - Subsequent QA fixed the EditMode Newtonsoft assembly reference, missing kitchen/frame Sprite IDs and footwear hue mixing. Added scene/asset/rendered-pixel regression coverage. Automated and visual verification details are in `verification/versus-validation/RESULTS.md`; WebGL, live upload and physical-controller checks remain separate.
-
-

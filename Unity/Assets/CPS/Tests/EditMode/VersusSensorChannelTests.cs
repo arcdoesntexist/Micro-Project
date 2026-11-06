@@ -25,6 +25,23 @@ namespace CPS.KitchenCatch.Tests
             Assert.That(state.Right.ForceN, Is.Null);
         }
 
+        [TestCase(50, 4095, true, false)]
+        [TestCase(4095, 100, false, true)]
+        [TestCase(50, 100, true, true)]
+        [TestCase(4095, 4095, false, false)]
+        public void RestoredSensorsReportIndependentLeftRightAndBoth(int left, int right, bool leftPressed, bool rightPressed)
+        {
+            settings.stm32LeftEnabled = true;
+            var channel = new VersusSensorChannel(2, settings);
+            channel.Receive($"FSR raw L={left} R={right}\n", 1);
+            var state = channel.Read(1);
+            Assert.That(state.Left.Valid && state.Right.Valid, Is.True);
+            Assert.That(state.Left.Pressed, Is.EqualTo(leftPressed));
+            Assert.That(state.Right.Pressed, Is.EqualTo(rightPressed));
+            Assert.That(state.Left.ForceN, Is.Null);
+            Assert.That(state.Right.ForceN, Is.Null);
+        }
+
         [TestCase("FSR raw L=4096 R=0\n")]
         [TestCase("FSR raw L=0 R=-1\n")]
         [TestCase("FSR raw L=0 R=100 trailing\n")]

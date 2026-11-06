@@ -53,7 +53,9 @@ namespace CPS.KitchenCatch
                 var connect = Button(column, "CONNECT", new Vector2(0, -5), new Vector2(480, 72), () => Toggle(index));
                 connectLabels[i] = connect.GetComponentInChildren<Text>();
                 statuses[i] = Label(column, "Keyboard only", new Vector2(0, -100), new Vector2(490, 95), 26);
-                Label(column, i == 0 ? "A / D or left / right FSR" : "Left / Right arrows or right FSR\nLeft FSR disabled", new Vector2(0, -180), new Vector2(500, 65), 24);
+                string controls = i == 0 ? "A / D or left / right FSR" : hub.Settings.stm32LeftEnabled
+                    ? "Left / Right arrows or left / right FSR" : "Left / Right arrows or right FSR\nLeft FSR disabled";
+                Label(column, controls, new Vector2(0, -180), new Vector2(500, 65), 24);
             }
             Label(card, VersusControllerHub.NativeSupported ? "STM32 strength is provisional. FSR values are relative, not N." :
                 "Dual USB requires Windows Editor/player. Use keyboard in this browser.", new Vector2(0, -282), new Vector2(1190, 55), 25);

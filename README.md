@@ -56,11 +56,11 @@ In Versus Setup, open **CONTROLLERS**, refresh the available COM ports, click ea
 | Player | Left | Right |
 | --- | --- | --- |
 | P1 | A or ESP32 GPIO34 FSR | D or ESP32 GPIO35 FSR |
-| P2 | Left Arrow; broken STM32 left FSR disabled | Right Arrow or STM32 PA1/A1 FSR |
+| P2 | Left Arrow or STM32 PA0/A0 FSR | Right Arrow or STM32 PA1/A1 FSR |
 
 Keyboard and enabled sensors can be used together in practice, Ready and gameplay. Press both directions to ready. Editing a nickname or opening the Controllers overlay suppresses practice controls. A lost/stale connected stream pauses both fields; use Controllers to reconnect, then Keep Cooking, or explicitly Continue with Keyboard. Resume runs the shared countdown. Continuing with keyboard disconnects both Versus controllers for that match; it does not automatically resume on reconnect.
 
-`Unity/Assets/CPS/Resources/VersusControllerSettings.asset` holds enabled channels, press/release hysteresis (20%/15%), stale timeout (.75 s), and provisional STM32 released/reference endpoints (4095/100). STM32 left remains disabled until replaced and verified. FSR values are relative percentages, never newtons. The STM32 endpoints require physical calibration confirmation. Single Player retains its existing controller settings and USB workflow.
+`Unity/Assets/CPS/Resources/VersusControllerSettings.asset` holds enabled channels, press/release hysteresis (20%/15%), stale timeout (.75 s), and provisional STM32 released/reference endpoints (4095/100). FSR values are relative percentages, never newtons. The STM32 endpoints require physical calibration confirmation. Single Player retains its existing controller settings and USB workflow.
 
 This dual-controller path supports Windows Unity Editor/player. WebGL still supports keyboard for Versus; dual Web Serial is not implemented. See `docs/unity-usb-controller-guide.md` and [verification summary](docs/verification-summary.md) for instructions and verification limits.
 
@@ -111,6 +111,8 @@ Difficulty changes the falling speed, spawn interval, rubbish probability and vi
 | Right FSR | GPIO35 | Released 4095; reference press 156.5 |
 | Left Load Cell, 1 kg | DT32 / SCK18 | −2449.84 counts/g |
 | Right Load Cell, 5 kg | DT33 / SCK4 | −429.11 counts/g |
+
+Single Player requires the ESP32 Sensor_Controller JSON stream for both FSR and Load Cell. Choose the ESP32 COM port, rather than STM32/ST-LINK raw FSR. See the [USB guide](docs/unity-usb-controller-guide.md) for port selection and Tare recovery.
 
 The single firmware supports switching controller type without reflashing. The round locks its controller mode and thresholds. Stale input, USB loss or a board restart pauses the game before further gameplay updates; recover through Controller in Pause, then resume explicitly.
 
@@ -170,4 +172,3 @@ The repository retains classroom-demo audio sources in `sound` and temporarily e
 Runtime audio in `Unity/Assets/CPS/Resources/LocalDemoAudio` remains local and ignored by Git. For the classroom setup, copy the supplied MP3s from `sound` into that folder with their existing filenames; otherwise the optional local audio remains silent.
 
 The recorded audio source links and detailed asset provenance are available in [the font and audio brief](docs/unity-font-audio-brief.md) and [the asset provenance report](docs/unity-asset-provenance.md).
-

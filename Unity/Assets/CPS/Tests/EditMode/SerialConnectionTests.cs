@@ -32,6 +32,19 @@ namespace CPS.KitchenCatch.Tests
             Assert.That(connection.IsConnected, Is.False);
             Assert.That(connection.Packets.Latest, Is.Null);
         }
+        [Test] public void RawFsrBenchShowsWrongFirmwareInsteadOfSilentlyWaitingForever()
+        {
+            int generation = connection.BeginSession(); connection.TransportOpened(generation);
+            connection.Receive("FSR raw L=4095 R=4095\n", generation, 1);
+            Assert.That(connection.IsConnected, Is.True);
+            Assert.That(connection.IsFresh(1), Is.False);
+            Assert.That(connection.LastError, Is.Not.Null, "Raw firmware must produce an actionable protocol hint.");
+            Assert.That(connection.LastError, Does.Contain("ESP32").And.Contain("Sensor_Controller"));
+            connection.Receive(Frame() + "\n", generation, 1.1);
+            Assert.That(connection.IsFresh(1.1), Is.True);
+            Assert.That(connection.LastError, Is.Null);
+        }
+
         [Test] public void TareNeedsANewerAcknowledgementNotOldValidForce()
         {
             int generation = connection.BeginSession(); connection.TransportOpened(generation);

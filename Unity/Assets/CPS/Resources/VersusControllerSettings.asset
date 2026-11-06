@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: CPS.Runtime::CPS.KitchenCatch.VersusControllerSettings
   esp32LeftEnabled: 1
   esp32RightEnabled: 1
-  stm32LeftEnabled: 0
+  stm32LeftEnabled: 1
   stm32RightEnabled: 1
   stm32ReleasedRaw: 4095
   stm32ReferenceRaw: 100

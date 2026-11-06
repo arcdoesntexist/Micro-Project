@@ -9,6 +9,6 @@ Import this directory as an existing STM32CubeIDE project (tested with CubeIDE 1
 - main.c invokes FsrBench_Init and FsrBench_Task inside preserved USER CODE sections.
 - Output: FSR raw L=<value> R=<value>, approximately ten lines per second.
 
-The firmware was built and programmed successfully on 2026-10-29. The Unity Windows Versus controller adapter accepts these raw lines directly. Unity currently ignores the broken left sensor and permits keyboard controls alongside the healthy right FSR. Confirm physical released/reference readings before treating percentage values as calibrated. No newton force is produced.
+The firmware was built and programmed successfully on 2026-10-29. The Unity Windows Versus controller adapter accepts these raw lines directly. Unity now enables both FSR channels after the user reported repairing the left sensor on 2026-11-06; keyboard controls remain available. Confirm physical released/reference readings before treating percentage values as calibrated. No newton force is produced.
 
 Build output, flash backups and machine-specific debug launch files are intentionally excluded from Git.

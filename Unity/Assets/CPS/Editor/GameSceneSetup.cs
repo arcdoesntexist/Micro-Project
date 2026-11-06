@@ -15,7 +15,7 @@ namespace CPS.KitchenCatch.Editor
     {
         private const string RigPath = "Assets/CPS/Prefabs/GameplayRig.prefab";
         private const string PrototypePath = "Assets/CPS/Prototype/";
-        private const string ResultEndpoint = "https://script.google.com/macros/s/AKfycbzBmXK-7_5x4EEBYNKbSOan61djhXDhBI_CD7mElk2EdohlfHCJwU34wO4pV1ckKdUXsQ/exec";
+        private const string ResultEndpoint = "https://script.google.com/macros/s/AKfycbxmUwlzaqkbO04UAfhy2CxkpmMR5fEXioOeCoTGxHrwuX4V6VCA9zC3RJ_YQlq-gq8h/exec";
         private static readonly string[] SceneNames = { "Boot", "MainMenu", "Gameplay" };
 
         [MenuItem("CPS/Create Playable Scenes")]

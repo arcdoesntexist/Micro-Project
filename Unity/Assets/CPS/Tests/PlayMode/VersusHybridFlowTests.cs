@@ -111,13 +111,13 @@ namespace CPS.KitchenCatch.Tests
             while (!hub.IsFresh(2, SerialConnection.NowSeconds) && Time.realtimeSinceStartup < deadline) yield return null;
             Assert.That(hub.IsFresh(2, SerialConnection.NowSeconds), Is.True, hub.Status(2));
             var state = hub.Read(2);
-            Assert.That(state.Left.Valid, Is.False);
+            Assert.That(state.Left.Valid, Is.EqualTo(hub.Settings.stm32LeftEnabled));
             Assert.That(state.Right.Valid, Is.True);
             Assert.That(state.Right.ForceN, Is.Null);
             string directory = Path.GetFullPath(Path.Combine(Application.dataPath, "../../verification/versus-hybrid-input"));
             File.WriteAllText(Path.Combine(directory, "physical-stm32.txt"),
                 "Physical receive on " + port + ": " + hub.Status(2) + "\nRight strength=" + state.Right.Strength01 +
-                "; left disabled=" + !state.Left.Valid + "; no newton force=" + !state.Right.ForceN.HasValue);
+                "; left enabled=" + state.Left.Valid + "; no newton force=" + !state.Right.ForceN.HasValue);
             Object.FindFirstObjectByType<VersusControllerPanel>().Show();
             Capture("Physical-STM32-Controllers-1080", 1920, 1080);
             hub.Disconnect(2);
