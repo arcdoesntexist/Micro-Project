@@ -93,6 +93,52 @@ namespace CPS.KitchenCatch.Tests
             }
         }
 
+        [Test]
+        public void ObjectsPerWaveGrowWithTierAndStayCapped()
+        {
+            var challenge = new VersusChallenge();
+
+            Assert.That(challenge.At(0).ObjectsPerWave, Is.EqualTo(1));
+            Assert.That(challenge.At(59).ObjectsPerWave, Is.EqualTo(1));
+            Assert.That(challenge.At(60).ObjectsPerWave, Is.EqualTo(2));
+            Assert.That(challenge.At(10000).ObjectsPerWave, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void LaterTiersSendShortStaggeredBursts()
+        {
+            var records = Generate(7, 300);
+
+            bool sawBurst = false;
+            for (int index = 1; index < records.Count; index++)
+            {
+                float gap = records[index].SpawnTime - records[index - 1].SpawnTime;
+                Assert.That(gap, Is.GreaterThan(0), "Objects must not spawn at the same moment.");
+                if (records[index].SpawnTime < 60) Assert.That(gap, Is.EqualTo(new VersusChallenge()
+                    .At(records[index - 1].SpawnTime).IntervalSeconds).Within(0.0001f));
+                else if (gap <= 0.35f + 0.0001f) sawBurst = true;
+            }
+            Assert.That(sawBurst, Is.True);
+        }
+
+        [Test]
+        public void BurstObjectsAreNotReleasedBeforeTheirOwnTime()
+        {
+            var stream = new VersusSpawnStream(new VersusChallenge(), 3);
+            const float tick = 0.01f;
+            for (int frame = 0; frame <= 20000; frame++)
+            {
+                float now = frame * tick;
+                foreach (var record in Drain(stream, now))
+                {
+                    Assert.That(now + 0.00001f, Is.GreaterThanOrEqualTo(record.SpawnTime),
+                        "Released too early: " + record.Id);
+                    Assert.That(now - record.SpawnTime, Is.LessThan(tick + 0.0001f),
+                        "Released too late: " + record.Id);
+                }
+            }
+        }
+
         private static List<VersusSpawnRecord> Generate(int seed, float duration)
         {
             var stream = new VersusSpawnStream(new VersusChallenge(), seed);

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace CPS.KitchenCatch
 {
@@ -7,8 +8,12 @@ namespace CPS.KitchenCatch
         private static readonly float[] Lanes = { -1, -.75f, -.5f, -.25f, 0, .25f, .5f, .75f, 1 };
         private readonly VersusChallenge challenge;
         private readonly Random random;
-        private float nextSpawnTime;
+        private readonly List<int> freeLanes = new List<int>(Lanes.Length);
+        private float nextWaveTime;
+        private float nextObjectTime;
         private long nextId;
+        private int remainingInWave;
+        private VersusChallengeStep waveStep;
 
         public VersusSpawnStream(VersusChallenge challenge, int seed)
         {
@@ -20,19 +25,44 @@ namespace CPS.KitchenCatch
         {
             if (float.IsNaN(activeSeconds) || float.IsInfinity(activeSeconds) || activeSeconds < 0)
                 throw new ArgumentException("Active time must be finite and nonnegative.", nameof(activeSeconds));
-            if (activeSeconds + 0.00001f < nextSpawnTime)
+
+            float due = remainingInWave > 0 ? nextObjectTime : nextWaveTime;
+            if (activeSeconds + 0.00001f < due)
             {
                 record = default;
                 return false;
             }
+            if (remainingInWave == 0) StartWave();
 
-            var step = challenge.At(nextSpawnTime);
-            var kind = random.NextDouble() < step.TrashProbability ? ObjectKind.Trash : ObjectKind.Food;
-            record = new VersusSpawnRecord(++nextId, kind,
-                random.Next(kind == ObjectKind.Food ? 3 : 2),
-                Lanes[random.Next(Lanes.Length)], nextSpawnTime, step.FallSpeed);
-            nextSpawnTime += step.IntervalSeconds;
+            var kind = random.NextDouble() < waveStep.TrashProbability ? ObjectKind.Trash : ObjectKind.Food;
+            int definition = random.Next(kind == ObjectKind.Food ? 3 : 2);
+            record = new VersusSpawnRecord(++nextId, kind, definition, TakeFreeLane(),
+                nextObjectTime, waveStep.FallSpeed);
+
+            // The next object of this burst follows a short, random moment later.
+            if (--remainingInWave > 0)
+                nextObjectTime += waveStep.MinGapSeconds +
+                    (float)random.NextDouble() * (waveStep.MaxGapSeconds - waveStep.MinGapSeconds);
             return true;
+        }
+
+        private void StartWave()
+        {
+            nextObjectTime = nextWaveTime;
+            waveStep = challenge.At(nextWaveTime);
+            remainingInWave = Math.Max(1, Math.Min(waveStep.ObjectsPerWave, Lanes.Length));
+            freeLanes.Clear();
+            for (int index = 0; index < Lanes.Length; index++) freeLanes.Add(index);
+            nextWaveTime += waveStep.IntervalSeconds;
+        }
+
+        // Objects in one burst use different lanes, so the player has to move between them.
+        private float TakeFreeLane()
+        {
+            int pick = random.Next(freeLanes.Count);
+            int lane = freeLanes[pick];
+            freeLanes.RemoveAt(pick);
+            return Lanes[lane];
         }
     }
 }
